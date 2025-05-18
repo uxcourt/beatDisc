@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Concentric Tick Sequencer</title>
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+      font-family: sans-serif;
+    }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    button, input[type="range"], input[type="file"] {
+      background: #222;
+      color: #fff;
+      border: 2px solid #0ff;
+      border-radius: 5px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    label {
+      color: #0ff;
+    }
+    #legendPanel {
+      background: rgba(0, 0, 0, 0.85);
+      border: 2px solid #0ff;
+      color: white;
+      padding: 10px;
+    }
+    .legend-toggle {
+      background: #0ff;
+      color: #000;
+      font-weight: bold;
+      border: none;
+      padding: 4px 10px;
+      margin-bottom: 5px;
+      cursor: pointer;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    #ImpExpPanel{
+      display:none;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <button id="toggleBtn">Stop</button>
+    <label>
+      Speed
+      <input type="range" id="speedSlider" min="0.001" max="0.1" value="0.02" step="0.001">
+      <br>press space to start/stop
+    </label>
+    <div>
+      <button class="legend-toggle" onclick="toggleLegend()">Legend and Segments</button>
+      <div id="legendPanel">
+        <div class="legend-item"><div class="legend-color" style="background:#ff4444"></div>clave</div>
+        <div class="legend-item"><div class="legend-color" style="background:#ff9900"></div>campana</div>
+        <div class="legend-item"><div class="legend-color" style="background:#ffee00"></div>guiro</div>
+        <div class="legend-item"><div class="legend-color" style="background:#66dd22"></div>low conga</div>
+        <div class="legend-item"><div class="legend-color" style="background:#00cccc"></div>high conga</div>
+        <div class="legend-item"><div class="legend-color" style="background:#2266ff"></div>timbale</div>
+        <div class="legend-item"><div class="legend-color" style="background:#9922ff"></div>bajo</div>
+        <div class="legend-item"><div class="legend-color" style="background:#ff22bb"></div>piano</div>
+        <label>
+          Segments
+          <input type="number" id="segmentInput" min="1" value="16">
+        </label>
+      </div>
+     
+
+    </div>
+    <button class="ImpExp-toggle" onclick="toggleImpExp()">Import/Export</button>
+    <div id="ImpExpPanel">
+      <button onclick="exportPattern()">Export Pattern</button>
+      <input type="file" id="importInput" accept=".json" />
+    </div>  
+  </div>
+
+  <canvas id="canvas"></canvas>
+  <script src="sounds.js"></script>
+  <script>
+    function toggleLegend() {
+      const panel = document.getElementById("legendPanel");
+      panel.style.display = panel.style.display === "block" ? "none" : "block";
+    }
+    function toggleImpExp() {
+      const panel = document.getElementById("ImpExpPanel");
+      panel.style.display = panel.style.display === "block" ? "none" : "block";
+    }
+
+ 
+    const audioElements = {};
+    for (const [key, src] of Object.entries(base64Sounds)) {
+      const audio = new Audio(src);
+      audioElements[key] = audio;
+    }
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const toggleBtn = document.getElementById("toggleBtn");
+    const speedSlider = document.getElementById("speedSlider");
+
+    let width, height, centerX, centerY;
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      width = canvas.width;
+      height = canvas.height;
+      centerX = width / 2;
+      centerY = height / 2;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    const circleCount = 8;
+    let minRadius = Math.min(width, height) * 0.1;
+    let maxRadius = Math.min(width, height) * 0.4;
+    const radiusStep = (maxRadius - minRadius) / circleCount;
+
+    let rotation = 0;
+    let previousRotation = 0;
+    let isRotating = true;
+    let rotationSpeed = parseFloat(speedSlider.value);
+
+    const circleColors = [
+      "#ff4444", "#ff9900", "#ffee00", "#66dd22",
+      "#00cccc", "#2266ff", "#9922ff", "#ff22bb"
+    ];
+
+    const sounds = [
+      "tick1", "tick2", "tick3", "tick4",
+      "tick5", "tick6", "tick7", "tick8"
+    ];
+
+    let ticks = []; // { angle, circleIndex, sound }
+
+    const activeTickCooldowns = new Map();
+    const TICK_SOUND_COOLDOWN = 100;
+    const TICK_RADIUS = 10;
+    const CENTER_DOT_RADIUS = 1;
+    //const segmentInput = document.getElementById("segmentInput");
+
+    let segmentCount = parseInt(segmentInput.value);
+
+    segmentInput.addEventListener("input", () => {
+      const val = parseInt(segmentInput.value);
+      if (val > 0) {
+        segmentCount = val;
+      }
+    });
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY - maxRadius - 20);
+      ctx.lineTo(centerX, centerY - maxRadius - 40);
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(rotation);
+      ctx.strokeStyle = "#044";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < segmentCount; i++) {
+        const angle = i * (2 * Math.PI / segmentCount);
+        const x = Math.cos(angle) * (maxRadius + 20);
+        const y = Math.sin(angle) * (maxRadius + 20);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      for (let i = 0; i < circleCount; i++) {
+        const radius = minRadius + i * radiusStep;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = circleColors[i];
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      for (const tick of ticks) {
+        const radius = minRadius + tick.circleIndex * radiusStep;
+        const angle = tick.angle + rotation;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+
+        ctx.beginPath();
+        ctx.arc(x, y, TICK_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = circleColors[tick.circleIndex];
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(x, y, CENTER_DOT_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = "#111";
+        ctx.fill();
+      }
+
+      const now = Date.now();
+      const triggerAngle = 3 * Math.PI / 2;
+      const triggerRange = Math.PI / 32;
+
+      for (const tick of ticks) {
+        const prev = (tick.angle + previousRotation) % (2 * Math.PI);
+        const curr = (tick.angle + rotation) % (2 * Math.PI);
+
+        const crossedTrigger = prev < triggerAngle - triggerRange && curr >= triggerAngle - triggerRange;
+
+        if (crossedTrigger) {
+          const lastPlayed = activeTickCooldowns.get(tick) || 0;
+          if (now - lastPlayed > TICK_SOUND_COOLDOWN) {
+            const audio = audioElements[tick.sound];
+            if (audio) {
+              audio.currentTime = 0;
+              audio.play();
+            }
+            activeTickCooldowns.set(tick, now);
+          }
+        }
+      }
+
+      if (isRotating) {
+        previousRotation = rotation;
+        rotation = (rotation + rotationSpeed) % (2 * Math.PI);
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left - centerX;
+      const y = e.clientY - rect.top - centerY;
+      const dist = Math.sqrt(x * x + y * y);
+      const angle = (Math.atan2(y, x) - rotation + 2 * Math.PI) % (2 * Math.PI);
+
+      const index = Math.floor((dist - minRadius) / radiusStep);
+      if (index >= 0 && index < circleCount) {
+       /* const existing = ticks.filter(
+          t => t.circleIndex === index && Math.abs(t.angle - angle) < 0.1
+        );
+        if (existing.length > 0) {
+          ticks.splice(ticks.indexOf(existing[existing.length - 1]), 1);
+        } else {
+          ticks.push({ angle, circleIndex: index, sound: sounds[index] });
+        }*/
+        function angularDistance(a1, a2) {
+  const diff = Math.abs(a1 - a2) % (2 * Math.PI);
+  return Math.min(diff, 2 * Math.PI - diff);
+}
+
+const threshold = 0.15; // slightly wider, more forgiving
+let closest = null;
+let minDist = Infinity;
+
+for (const tick of ticks) {
+  if (tick.circleIndex === index) {
+    const dist = angularDistance(tick.angle, angle);
+    if (dist < threshold && dist < minDist) {
+      closest = tick;
+      minDist = dist;
+    }
+  }
+}
+
+if (closest) {
+  ticks.splice(ticks.indexOf(closest), 1);
+} else {
+  ticks.push({ angle, circleIndex: index, sound: sounds[index] });
+}
+
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        isRotating = !isRotating;
+        toggleBtn.textContent = isRotating ? "Stop" : "Start";
+      }
+    });
+
+    toggleBtn.addEventListener("click", () => {
+      isRotating = !isRotating;
+      toggleBtn.textContent = isRotating ? "Stop" : "Start";
+    });
+
+    speedSlider.addEventListener("input", () => {
+      rotationSpeed = parseFloat(speedSlider.value);
+    });
+
+    document.getElementById("importInput").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        try {
+          const data = JSON.parse(event.target.result);
+          if (Array.isArray(data)) {
+            ticks = data;
+          }
+        } catch (err) {
+          alert("Failed to load pattern.");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    function exportPattern() {
+      const filename = prompt("Enter filename for export:", "pattern.json");
+      if (!filename) return;
+      const blob = new Blob([JSON.stringify(ticks)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+    }
+
+    draw();
+  </script>
+</body>
+</html>
