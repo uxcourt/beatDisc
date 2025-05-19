@@ -16,3 +16,6 @@ Click on any existing mark to remove it.
 
 # current bugs
 Let me know if you find any; it seems stable and performant on all platforms I've been able to test with.
+
+#running version
+<a href="https://ccdsign.com/rhythmcircle">https://ccdsign.com/rhythmcircle</a>
