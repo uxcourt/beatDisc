@@ -15,4 +15,4 @@ Click on any of the eight concentric circles to add a mark. When the circle is r
 Click on any existing mark to remove it.
 
 # current bugs
-It doesn't seem to do well on iOS, but its tested and works fine on Android and MacOS.
+Let me know if you find any; it seems stable and performant on all platforms I've been able to test with.
