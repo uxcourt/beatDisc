@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Rhythm Circle</title>
+  <title>Concentric Tick Sequencer</title>
   <style>
     html, body {
       margin: 0;
@@ -57,8 +57,14 @@
       border-radius: 50%;
       margin-right: 8px;
     }
-    #ImpExpPanel {
-      display: none;
+
+    #quantizeToggle.toggle-on {
+    background: #0f0;
+    color: #000;
+    }
+    #quantizeToggle.toggle-off {
+      background: #444;
+      color: #fff;
     }
   </style>
 </head>
@@ -71,7 +77,7 @@
       <br>press space to start/stop
     </label>
     <div>
-      <button class="legend-toggle" onclick="toggleLegend()">Legend and Segments</button>
+      <button class="legend-toggle" onclick="toggleLegend()">Show Settings</button>
       <div id="legendPanel">
         <div class="legend-item"><div class="legend-color" style="background:#ff4444"></div>clave</div>
         <div class="legend-item"><div class="legend-color" style="background:#ff9900"></div>campana</div>
@@ -81,261 +87,33 @@
         <div class="legend-item"><div class="legend-color" style="background:#2266ff"></div>timbale</div>
         <div class="legend-item"><div class="legend-color" style="background:#9922ff"></div>bajo</div>
         <div class="legend-item"><div class="legend-color" style="background:#ff22bb"></div>piano</div>
-        <label>
+        <div>
+          <label>
           Segments
           <input type="number" id="segmentInput" min="1" value="16">
-        </label>
+          </label>
+        </div>
+        <div>
+          <label>
+          Only allow sounds on segment lines:
+          <button id="quantizeToggle" class="toggle-on">Strict</button>
+          </label>
+        </div>
+
+        <div>
+          <button onclick="exportPattern()">Export Pattern</button>
+          <div>
+            <label>Import Pattern
+              <input type="file" id="importInput" accept=".json" />
+            </label>  
+          </div>
+        </div>
       </div>
     </div>
-    <button class="ImpExp-toggle" onclick="toggleImpExp()">Import/Export</button>
-    <div id="ImpExpPanel">
-      <button onclick="exportPattern()">Export Pattern</button>
-      <input type="file" id="importInput" accept=".json" />
-    </div>
+  
   </div>
-
   <canvas id="canvas"></canvas>
-
   <script src="sounds.js"></script>
-  <script>
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-    let width = window.innerWidth*.9;
-    let height = window.innerHeight*.9;
-    console.log(width);
-    canvas.width = width;
-    canvas.height = height;
-
-    const centerX = width / 2;
-    const centerY = height / 2;
-
-    const rings = 8;
-    const ringColors = ['#ff4444', '#ff9900', '#ffee00', '#66dd22', '#00cccc', '#2266ff', '#9922ff', '#ff22bb'];
-    const innerGap = 100;
-    const ringGap = 30;
-    const tickRadius = 6;
-
-    let isRunning = false;
-    let angleOffset = 0;
-    let placedTicks = [];
-    let segmentCount = 16;
-    let sounds = [];
-
-    const lastPlayedAngles = Array.from({ length: rings }, () => new Map());
-
-    let audioCtx = null;
-    let audioBuffers = [];
-
-    async function initAudio() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        await audioCtx.resume(); // Resume on first gesture
-
-        // Decode all base64 sounds
-        audioBuffers = await Promise.all(Object.values(base64Sounds).map(async base64 => {
-          const response = await fetch(base64);
-          const arrayBuffer = await response.arrayBuffer();
-          return await audioCtx.decodeAudioData(arrayBuffer);
-        }));
-      }
-    }
-
-    function playSound(index) {
-      if (!audioCtx || !audioBuffers[index]) return;
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-
-      const source = audioCtx.createBufferSource();
-      source.buffer = audioBuffers[index];
-      source.connect(audioCtx.destination);
-      source.start(0);
-    }
-
-    function drawStatic() {
-      ctx.clearRect(0, 0, width, height);
-
-      // Red vertical guide line at 12 o'clock
-      const lineLength = 30;
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY - (innerGap + rings * ringGap + lineLength));
-      ctx.lineTo(centerX, centerY - (innerGap + rings * ringGap));
-      ctx.stroke();
-
-      // Concentric rings
-      for (let i = 0; i < rings; i++) {
-        const radius = innerGap + i * ringGap;
-        ctx.strokeStyle = ringColors[i];
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-        ctx.stroke();
-      }
-
-      // Radial segment lines
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < segmentCount; i++) {
-        const angle = (i / segmentCount) * 2 * Math.PI;
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(
-          centerX + Math.cos(angle) * (innerGap + rings * ringGap),
-          centerY + Math.sin(angle) * (innerGap + rings * ringGap)
-        );
-        ctx.stroke();
-      }
-
-      // Only show tick markers if not rotating
-      if (!isRunning) {
-        for (let tick of placedTicks) {
-          const radius = innerGap + tick.ring * ringGap;
-          const x = centerX + Math.cos(tick.angle) * radius;
-          const y = centerY + Math.sin(tick.angle) * radius;
-
-          ctx.fillStyle = ringColors[tick.ring];
-          ctx.beginPath();
-          ctx.arc(x, y, tickRadius, 0, 2 * Math.PI);
-          ctx.fill();
-
-          ctx.fillStyle = 'black';
-          ctx.beginPath();
-          ctx.arc(x, y, 2, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-      }
-    }
-
-    function drawDynamic() {
-      if (!isRunning) return;
-      ctx.clearRect(0, 0, width, height);
-      drawStatic();
-
-      const speed = parseFloat(document.getElementById("speedSlider").value);
-      angleOffset += speed;
-
-      for (let tick of placedTicks) {
-        const radius = innerGap + tick.ring * ringGap;
-        const rotatedAngle = tick.angle + angleOffset;
-        const x = centerX + Math.cos(rotatedAngle) * radius;
-        const y = centerY + Math.sin(rotatedAngle) * radius;
-
-        ctx.fillStyle = ringColors[tick.ring];
-        ctx.beginPath();
-        ctx.arc(x, y, tickRadius, 0, 2 * Math.PI);
-        ctx.fill();
-
-        ctx.fillStyle = 'black';
-        ctx.beginPath();
-        ctx.arc(x, y, 2, 0, 2 * Math.PI);
-        ctx.fill();
-
-        const normalized = ((rotatedAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-        const delta = Math.abs(normalized - (3 * Math.PI / 2));
-        const threshold = speed * 2;
-
-        if (delta < threshold) {
-          if (!lastPlayedAngles[tick.ring].has(tick.angle)) {
-            playSound(tick.ring);
-            lastPlayedAngles[tick.ring].set(tick.angle, true);
-          }
-        } else {
-          lastPlayedAngles[tick.ring].delete(tick.angle);
-        }
-      }
-
-      requestAnimationFrame(drawDynamic);
-    }
-
-    document.getElementById("toggleBtn").addEventListener("click", toggleRotation);
-
-    function toggleRotation() {
-      initAudio();
-      isRunning = !isRunning;
-      document.getElementById("toggleBtn").textContent = isRunning ? "Stop" : "Start";
-      drawStatic();
-      if (isRunning) drawDynamic();
-    }
-
-    let spacePressed = false;
-    document.addEventListener("keydown", e => {
-      if (e.code === "Space" && !spacePressed) {
-        toggleRotation();
-        spacePressed = true;
-      }
-    });
-    document.addEventListener("keyup", e => {
-      if (e.code === "Space") {
-        spacePressed = false;
-      }
-    });
-
-    canvas.addEventListener("click", e => {
-      const dx = e.clientX - centerX;
-      const dy = e.clientY - centerY;
-      const angle = Math.atan2(dy, dx);
-      const dist = Math.hypot(dx, dy);
-      const ring = Math.round((dist - innerGap) / ringGap);
-      const snappedAngle = Math.round(angle / (2 * Math.PI) * segmentCount) * (2 * Math.PI / segmentCount);
-
-      if (ring >= 0 && ring < rings) {
-        const existing = placedTicks.find(t => t.ring === ring && Math.abs(t.angle - snappedAngle) < 0.01);
-        if (existing) {
-          placedTicks = placedTicks.filter(t => t !== existing);
-        } else {
-          placedTicks.push({ ring, angle: snappedAngle });
-        }
-        drawStatic();
-      }
-    });
-
-    document.getElementById("segmentInput").addEventListener("input", e => {
-      segmentCount = parseInt(e.target.value);
-      drawStatic();
-    });
-
-    function toggleLegend() {
-      const panel = document.getElementById("legendPanel");
-      panel.style.display = panel.style.display === "none" ? "block" : "none";
-    }
-
-    function toggleImpExp() {
-      const panel = document.getElementById("ImpExpPanel");
-      panel.style.display = panel.style.display === "none" ? "block" : "none";
-    }
-
-    function exportPattern() {
-      const dataStr = JSON.stringify(placedTicks);
-      const blob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "pattern.json";
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    document.getElementById("importInput").addEventListener("change", e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = evt => {
-        placedTicks = JSON.parse(evt.target.result);
-        drawStatic();
-      };
-      reader.readAsText(file);
-    });
-
-    window.addEventListener("resize", () => {
-      width = window.innerWidth*.9;
-      height = window.innerHeight*.9;
-      canvas.width = width;
-      canvas.height = height;
-      drawStatic();
-    });
-
-    // Initial render
-    drawStatic();
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
