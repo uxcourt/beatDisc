@@ -3,16 +3,13 @@ const ctx = canvas.getContext("2d");
 const toggleBtn = document.getElementById("toggleBtn");
 const speedSlider = document.getElementById("speedSlider");
 const segmentInput = document.getElementById("segmentInput");
+const circleCount = 8; 
+const ringVolumes = new Array(circleCount).fill(1); // default volume = 1
+
 
 let width, height, centerX, centerY;
 function resize() {
-  /*canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  width = canvas.width;
-  height = canvas.height;
-  centerX = width / 2;
-  centerY = height / 2;
-  */
+
   const dpr = window.devicePixelRatio || 1;
   canvas.width = window.innerWidth * dpr;
   canvas.height = window.innerHeight * dpr;
@@ -38,9 +35,6 @@ window.addEventListener("orientationchange", () => {
   setTimeout(resize, 300); // Wait for layout to stabilize
 });
 
-
-
-const circleCount = 8;
 let minRadius = Math.min(width, height) * 0.1;
 let maxRadius = Math.min(width, height) * 0.4;
 let radiusStep = (maxRadius - minRadius) / circleCount;
@@ -93,15 +87,20 @@ async function initAudio() {
   }
 }
 
-function playSound(index) {
+
+function playSound(index, volume = 1) {
   if (!audioCtx || !audioBuffers[index]) return;
   if (audioCtx.state === 'suspended') audioCtx.resume();
 
   const source = audioCtx.createBufferSource();
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.value = volume;
+
   source.buffer = audioBuffers[index];
-  source.connect(audioCtx.destination);
+  source.connect(gainNode).connect(audioCtx.destination);
   source.start(0);
 }
+
 
 function toggleLegend() {
   const panel = document.getElementById("legendPanel");
@@ -178,7 +177,7 @@ function draw() {
       const lastPlayed = activeTickCooldowns.get(tick) || 0;
       if (now - lastPlayed > TICK_SOUND_COOLDOWN) {
         const index = sounds.indexOf(tick.sound);
-        if (index !== -1) playSound(index);
+        if (index !== -1) playSound(index, ringVolumes[tick.circleIndex]);
         activeTickCooldowns.set(tick, now);
       }
     }
@@ -235,6 +234,13 @@ canvas.addEventListener("click", (e) => {
       ticks.push({ angle, circleIndex: index, sound: sounds[index] });
     }
   }
+  document.querySelectorAll(".volume-slider").forEach(slider => {
+  const ringIndex = parseInt(slider.dataset.ring);
+  slider.addEventListener("input", () => {
+    ringVolumes[ringIndex] = parseFloat(slider.value);
+  });
+});
+
 });
 
 document.addEventListener("keydown", (e) => {
