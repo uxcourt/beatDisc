@@ -1,3 +1,6 @@
+// This file contains only base64-encoded audio data.
+// DO NOT include executable scripts or functions here.
+
     // Base64 sounds
     const base64Sounds = {
       //clave
