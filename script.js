@@ -115,12 +115,16 @@ function draw() {
   ctx.clearRect(0, 0, width, height);
 
   ctx.beginPath();
-  ctx.moveTo(centerX, centerY - maxRadius - 20);
-  ctx.lineTo(centerX, centerY - maxRadius - 40);
+  //console.log("centerY - maxRadius =", centerY - maxRadius);
+
+  ctx.moveTo(centerX, centerY - maxRadius - 30);
+  ctx.lineTo(centerX, centerY - maxRadius - 10);
   ctx.strokeStyle = "red";
   ctx.lineWidth = 3;
   ctx.stroke();
 
+  //ctx.stroke();
+ 
   ctx.save();
   ctx.translate(centerX, centerY);
   ctx.rotate(rotation);
