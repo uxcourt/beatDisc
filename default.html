@@ -49,7 +49,9 @@
     .legend-item {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       margin-bottom: 4px;
+
     }
     .legend-color {
       width: 16px;
@@ -57,7 +59,10 @@
       border-radius: 50%;
       margin-right: 8px;
     }
-
+    #legendPanel label{
+      display: block;
+      border-top:8px;
+     } 
     #quantizeToggle.toggle-on {
     background: #0f0;
     color: #000;
@@ -79,14 +84,14 @@
     <div>
       <button class="legend-toggle" onclick="toggleLegend()">Show Settings</button>
       <div id="legendPanel">
-        <div class="legend-item"><div class="legend-color" style="background:#ff4444"></div>clave</div>
-        <div class="legend-item"><div class="legend-color" style="background:#ff9900"></div>campana</div>
-        <div class="legend-item"><div class="legend-color" style="background:#ffee00"></div>guiro</div>
-        <div class="legend-item"><div class="legend-color" style="background:#66dd22"></div>low conga</div>
-        <div class="legend-item"><div class="legend-color" style="background:#00cccc"></div>high conga</div>
-        <div class="legend-item"><div class="legend-color" style="background:#2266ff"></div>timbale</div>
-        <div class="legend-item"><div class="legend-color" style="background:#9922ff"></div>bajo</div>
-        <div class="legend-item"><div class="legend-color" style="background:#ff22bb"></div>piano</div>
+        <div class="legend-item"><div class="legend-color" style="background:#ff4444"></div>clave:  <input type="range" class="volume-slider" data-ring="0" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#ff9900"></div>campana:  <input type="range" class="volume-slider" data-ring="1" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#ffee00"></div>guiro:  <input type="range" class="volume-slider" data-ring="2" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#66dd22"></div>low conga:  <input type="range" class="volume-slider" data-ring="3" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#00cccc"></div>high conga:  <input type="range" class="volume-slider" data-ring="4" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#2266ff"></div>timbale:  <input type="range" class="volume-slider" data-ring="5" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#9922ff"></div>bajo:  <input type="range" class="volume-slider" data-ring="6" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#ff22bb"></div>piano:  <input type="range" class="volume-slider" data-ring="7" min="0" max="1" step="0.01" value="1"></div>
         <div>
           <label>
           Segments
@@ -103,7 +108,7 @@
         <div>
           <button onclick="exportPattern()">Export Pattern</button>
           <div>
-            <label>Import Pattern
+            <label>Import Pattern <br/>
               <input type="file" id="importInput" accept=".json" />
             </label>  
           </div>
