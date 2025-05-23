@@ -1,11 +1,13 @@
 // ==== GLOBAL CONSTANTS ====
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const toggleBtn = document.getElementById("toggleBtn");
+const startToggle = document.getElementById("startToggle");
 const speedSlider = document.getElementById("speedSlider");
 const segmentInput = document.getElementById("segmentInput");
 const quantizeToggle = document.getElementById("quantizeToggle");
 const easeToggle = document.getElementById("easeToggle");
+const importBtn = document.getElementById("importBtn");
+const exportBtn = document.getElementById("exportBtn");
 
 const circleCount = 8;
 const circleColors = [
@@ -19,6 +21,7 @@ const sounds = [
 const TICK_RADIUS = 10;
 const CENTER_DOT_RADIUS = 1;
 const TICK_SOUND_COOLDOWN = 100;
+const activeTickCooldowns = new Map();
 
 // ==== GLOBAL VARIABLES ====
 let width, height, centerX, centerY;
@@ -26,18 +29,41 @@ let minRadius, maxRadius, radiusStep;
 let rotation = 0;
 let previousRotation = 0;
 let isRotating = false;
-let rotationSpeed = parseFloat(speedSlider.value);
+let easingToZero = true;
+let easing = false;
+let easeInterval = null;
+let animationFrameId = null;
+let currentSpeed = parseFloat(speedSlider.value);
 let segmentCount = parseInt(segmentInput.value);
 let isQuantized = true;
-let easingToZero = false;
 let ringVolumes = new Array(circleCount).fill(1);
 let ticks = [];
 
 let audioCtx = null;
 let audioBuffers = [];
-const activeTickCooldowns = new Map();
+
+let drawCount = 0;
+setInterval(() => {
+  console.log("Frames per second:", drawCount);
+  drawCount = 0;
+}, 1000);
+
 
 // ==== INITIALIZATION ====
+/*function drawFrameOnce() {
+  const originalFrameId = animationFrameId;
+  animationFrameId = null;
+  draw();
+  animationFrameId = originalFrameId;
+}*/
+// ==== SAFE ONE-OFF FRAME ====
+function drawFrameOnce() {
+  const savedId = animationFrameId;
+  animationFrameId = null;
+  draw();
+  animationFrameId = savedId;
+}
+
 function resize() {
   const dpr = window.devicePixelRatio || 1;
   canvas.width = window.innerWidth * dpr;
@@ -61,6 +87,8 @@ function resize() {
 window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", () => setTimeout(resize, 300));
 resize();
+drawFrameOnce();
+
 
 // ==== AUDIO SETUP ====
 async function initAudio() {
@@ -129,17 +157,37 @@ quantizeToggle.addEventListener("click", () => {
 
 // ==== EASING BACK TO TOP ====
 easeToggle.addEventListener("click", () => {
+  //force rotation to stop before applying easing to avoid bug
+  if (isRotating) {
+    isRotating=false;
+    currentSpeed = parseFloat(speedSlider.value);
+
+    console.log ("currentSpeed set to " , currentSpeed, " from slider value: ", speedSlider.value);
+
+    startToggle.textContent="Start";
+    if (easeInterval) {
+      clearInterval(easeInterval);
+      easeInterval=null;
+      easing=false;
+    }
+  }
   easingToZero = !easingToZero;
-  easeToggle.textContent = easingToZero ? "On" : "Off";
+  easeToggle.textContent = easingToZero ? "Off" : "On";
 });
 
 // ==== PROCESS SPEED ====
 speedSlider.addEventListener("input", () => {
-  rotationSpeed = parseFloat(speedSlider.value);
+  currentSpeed = parseFloat(speedSlider.value);
+
+        console.log ("currentSpeed set to " , currentSpeed, " from slider value: ", speedSlider.value);
+
+      desiredSpeed = currentSpeed;
+      //console.log("currentSpeed: " + currentSpeed);
+      //console.log("desiredSpeed: " + desiredSpeed);
 });
 
 // ==== IMPORT PATTERN ====
-document.getElementById("importInput").addEventListener("change", function (e) {
+document.getElementById("importBtn").addEventListener("change", function (e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -174,8 +222,6 @@ document.getElementById("importInput").addEventListener("change", function (e) {
     console.error(err);
   }
 };
-
-
   reader.readAsText(file);
 });
 
@@ -195,7 +241,7 @@ function exportPattern() {
 }
 
 // ====  SPACE BAR TO STOP/START ====
-toggleBtn.addEventListener("click", handleRotationToggle);
+startToggle.addEventListener("click", handleRotationToggle);
 document.addEventListener("keydown", (e) => {
   if (e.code === "Space") {
     e.preventDefault();
@@ -203,7 +249,8 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// ==== ROTATION EASING ====
+
+// ==== HANDLE ROTATION TOGGLE WITH LOOP GUARD ====
 function handleRotationToggle() {
   initAudio().then(() => {
     if (isRotating) {
@@ -211,68 +258,107 @@ function handleRotationToggle() {
         easingToZeroStart();
       } else {
         isRotating = false;
-        toggleBtn.textContent = "Start";
+        currentSpeed = parseFloat(speedSlider.value);
+        startToggle.textContent = "Start";
+        if (easeInterval) {
+          clearInterval(easeInterval);
+          easeInterval = null;
+          easing = false;
+        }
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+          animationFrameId = null;
+        }
       }
     } else {
       isRotating = true;
-      toggleBtn.textContent = "Stop";
+      startToggle.textContent = "Stop";
+      if (animationFrameId === null) {
+        animationFrameId = requestAnimationFrame(draw);
+      }
     }
   });
 }
 
+// ==== EASING TO ZERO WITH FRAME GUARD ====
 function easingToZeroStart() {
+  if (!isRotating) return;
+
   isRotating = false;
-  let easeInterval = setInterval(() => {
+  easing = true;
+
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+
+  easeInterval = setInterval(() => {
     let diff = (2 * Math.PI - rotation) % (2 * Math.PI);
     if (diff < 0.01) {
       rotation = 0;
       clearInterval(easeInterval);
-      toggleBtn.textContent = "Start";
+      easeInterval = null;
+      easing = false;
+      startToggle.textContent = "Start";
+      currentSpeed = parseFloat(speedSlider.value);
     } else {
       rotation += diff * 0.15;
       rotation %= 2 * Math.PI;
     }
-    draw();
+    drawFrameOnce();
   }, 1000 / 60);
 }
 
+
 canvas.addEventListener("click", (e) => {
-  initAudio();
   const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left - centerX;
-  const y = e.clientY - rect.top - centerY;
-  const dist = Math.sqrt(x * x + y * y);
-  let angle = (Math.atan2(y, x) - rotation + 2 * Math.PI) % (2 * Math.PI);
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const dx = x - centerX;
+  const dy = y - centerY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  const circleIndex = Math.floor((distance - minRadius + radiusStep / 2) / radiusStep);
+  if (circleIndex < 0 || circleIndex >= circleCount) return;
+
+  let angle = Math.atan2(dy, dx) - rotation;
 
   if (isQuantized) {
-    const anglePerSegment = 2 * Math.PI / segmentCount;
-    angle = Math.round(angle / anglePerSegment) * anglePerSegment;
+    const segmentAngle = (2 * Math.PI) / segmentCount;
+    angle = Math.round(angle / segmentAngle) * segmentAngle;
   }
 
-  const index = Math.floor((dist - minRadius) / radiusStep);
-  if (index >= 0 && index < circleCount) {
-    let closest = null, minDist = Infinity;
-    for (const tick of ticks) {
-      if (tick.circleIndex === index) {
-        const diff = Math.abs(tick.angle - angle) % (2 * Math.PI);
-        const dist = Math.min(diff, 2 * Math.PI - diff);
-        if (dist < 0.15 && dist < minDist) {
-          closest = tick;
-          minDist = dist;
-        }
-      }
-    }
-    if (closest) {
-      ticks.splice(ticks.indexOf(closest), 1);
-    } else {
-      ticks.push({ angle, circleIndex: index, sound: sounds[index] });
-    }
+  // Normalize angle to [0, 2π)
+  angle = (angle + 2 * Math.PI) % (2 * Math.PI);
+
+  // Check for existing tick at same angle & ring
+  const existingIndex = ticks.findIndex(t =>
+    t.circleIndex === circleIndex &&
+    Math.abs(t.angle - angle) < 0.01
+  );
+
+  if (existingIndex >= 0) {
+    ticks.splice(existingIndex, 1); // remove
+  } else {
+    const sound = sounds[circleIndex];
+    ticks.push({ circleIndex, angle, sound });
   }
+
+  drawFrameOnce(); // update visual
 });
+
+
+
+drawCount = 0;
+setInterval(() => {
+  console.log("Frames per second:", drawCount);
+  drawCount = 0;
+}, 1000);
 
 function draw() {
   ctx.clearRect(0, 0, width, height);
-
+  drawCount++;
   ctx.beginPath();
   ctx.moveTo(centerX, centerY - maxRadius - 30);
   ctx.lineTo(centerX, centerY - maxRadius - 10);
@@ -295,7 +381,8 @@ function draw() {
     ctx.stroke();
   }
   ctx.restore();
-
+  
+  //Draw rings
   for (let i = 0; i < circleCount; i++) {
     const radius = minRadius + i * radiusStep;
     ctx.beginPath();
@@ -304,7 +391,7 @@ function draw() {
     ctx.lineWidth = 2;
     ctx.stroke();
   }
-
+  // Draw ticks
   for (const tick of ticks) {
     const radius = minRadius + tick.circleIndex * radiusStep;
     const angle = tick.angle + rotation;
@@ -322,10 +409,15 @@ function draw() {
     ctx.fill();
   }
 
-  if (isRotating) {
-    previousRotation = rotation;
-    rotation = (rotation + rotationSpeed) % (2 * Math.PI);
-  }
+    if (isRotating && !easing) {
+      previousRotation = rotation;
+      rotation += currentSpeed / 60;
+      rotation %= 2 * Math.PI;
+      if (currentSpeed > 6){console.warn("Unusually high current speed detected: ", currentSpeed);}
+      //console.log("previousRotation: " + previousRotation);
+      //console.log("rotation: " + rotation);
+    }
+
 
   const now = Date.now();
   const triggerAngle = 3 * Math.PI / 2;
@@ -345,8 +437,11 @@ function draw() {
       }
     }
   }
-
-  requestAnimationFrame(draw);
+  if (isRotating && !easing) {
+    animationFrameId = requestAnimationFrame(draw);
+    } else {
+    animationFrameId = null;
+  }
 }
 
 draw();
