@@ -351,10 +351,12 @@ canvas.addEventListener("click", (e) => {
 
 
 drawCount = 0;
+/*
 setInterval(() => {
   console.log("Frames per second:", drawCount);
   drawCount = 0;
 }, 1000);
+*/
 
 function draw() {
   ctx.clearRect(0, 0, width, height);
