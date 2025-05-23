@@ -43,11 +43,12 @@ let audioCtx = null;
 let audioBuffers = [];
 
 let drawCount = 0;
+/*
 setInterval(() => {
   console.log("Frames per second:", drawCount);
   drawCount = 0;
 }, 1000);
-
+*/
 
 // ==== INITIALIZATION ====
 /*function drawFrameOnce() {
@@ -162,7 +163,7 @@ easeToggle.addEventListener("click", () => {
     isRotating=false;
     currentSpeed = parseFloat(speedSlider.value);
 
-    console.log ("currentSpeed set to " , currentSpeed, " from slider value: ", speedSlider.value);
+    //console.log ("currentSpeed set to " , currentSpeed, " from slider value: ", speedSlider.value);
 
     startToggle.textContent="Start";
     if (easeInterval) {
@@ -179,7 +180,7 @@ easeToggle.addEventListener("click", () => {
 speedSlider.addEventListener("input", () => {
   currentSpeed = parseFloat(speedSlider.value);
 
-        console.log ("currentSpeed set to " , currentSpeed, " from slider value: ", speedSlider.value);
+        //console.log ("currentSpeed set to " , currentSpeed, " from slider value: ", speedSlider.value);
 
       desiredSpeed = currentSpeed;
       //console.log("currentSpeed: " + currentSpeed);
