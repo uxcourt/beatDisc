@@ -173,7 +173,7 @@ easeToggle.addEventListener("click", () => {
     }
   }
   easingToZero = !easingToZero;
-  easeToggle.textContent = easingToZero ? "Off" : "On";
+  easeToggle.textContent = easingToZero ? "On" : "Off";
 });
 
 // ==== PROCESS SPEED ====
