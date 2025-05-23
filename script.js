@@ -222,7 +222,8 @@ document.getElementById("importBtn").addEventListener("change", function (e) {
     alert("Failed to load pattern.");
     console.error(err);
   }
-};
+  drawFrameOnce();
+  };
   reader.readAsText(file);
 });
 
