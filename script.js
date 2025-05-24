@@ -1,451 +1,126 @@
-// ==== GLOBAL CONSTANTS ====
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-const startToggle = document.getElementById("startToggle");
-const speedSlider = document.getElementById("speedSlider");
-const segmentInput = document.getElementById("segmentInput");
-const quantizeToggle = document.getElementById("quantizeToggle");
-const easeToggle = document.getElementById("easeToggle");
-const importBtn = document.getElementById("importBtn");
-const exportBtn = document.getElementById("exportBtn");
-
-const circleCount = 8;
-const circleColors = [
-  "#ff4444", "#ff9900", "#ffee00", "#66dd22",
-  "#00cccc", "#2266ff", "#9922ff", "#ff22bb"
-];
-const sounds = [
-  "tick1", "tick2", "tick3", "tick4",
-  "tick5", "tick6", "tick7", "tick8"
-];
-const TICK_RADIUS = 10;
-const CENTER_DOT_RADIUS = 1;
-const TICK_SOUND_COOLDOWN = 100;
-const activeTickCooldowns = new Map();
-
-// ==== GLOBAL VARIABLES ====
-let width, height, centerX, centerY;
-let minRadius, maxRadius, radiusStep;
-let rotation = 0;
-let previousRotation = 0;
-let isRotating = false;
-let easingToZero = true;
-let easing = false;
-let easeInterval = null;
-let animationFrameId = null;
-let currentSpeed = parseFloat(speedSlider.value);
-let segmentCount = parseInt(segmentInput.value);
-let isQuantized = true;
-let ringVolumes = new Array(circleCount).fill(1);
-let ticks = [];
-
-let audioCtx = null;
-let audioBuffers = [];
-
-let drawCount = 0;
-/*
-setInterval(() => {
-  console.log("Frames per second:", drawCount);
-  drawCount = 0;
-}, 1000);
-*/
-
-// ==== INITIALIZATION ====
-/*function drawFrameOnce() {
-  const originalFrameId = animationFrameId;
-  animationFrameId = null;
-  draw();
-  animationFrameId = originalFrameId;
-}*/
-// ==== SAFE ONE-OFF FRAME ====
-function drawFrameOnce() {
-  const savedId = animationFrameId;
-  animationFrameId = null;
-  draw();
-  animationFrameId = savedId;
-}
-
-function resize() {
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = window.innerWidth * dpr;
-  canvas.height = window.innerHeight * dpr;
-  canvas.style.width = window.innerWidth + "px";
-  canvas.style.height = window.innerHeight + "px";
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.scale(dpr, dpr);
-
-  width = canvas.width / dpr;
-  height = canvas.height / dpr;
-  centerX = width / 2;
-  centerY = height / 2;
-
-  const padding = 20;
-  const maxUsable = Math.min(width, height) - 2 * padding;
-  minRadius = maxUsable * 0.1;
-  maxRadius = maxUsable * 0.5;
-  radiusStep = (maxRadius - minRadius) / circleCount;
-}
-window.addEventListener("resize", resize);
-window.addEventListener("orientationchange", () => setTimeout(resize, 300));
-resize();
-drawFrameOnce();
-
-
-// ==== AUDIO SETUP ====
-async function initAudio() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    await audioCtx.resume();
-    audioBuffers = await Promise.all(
-      sounds.map(async (key) => {
-        const response = await fetch(base64Sounds[key]);
-        const arrayBuffer = await response.arrayBuffer();
-        return await audioCtx.decodeAudioData(arrayBuffer);
-      })
-    );
-  }
-}
-
-function playSound(index, volume = 1) {
-  if (!audioCtx || !audioBuffers[index]) return;
-  if (audioCtx.state === "suspended") audioCtx.resume();
-
-  const source = audioCtx.createBufferSource();
-  const gainNode = audioCtx.createGain();
-  gainNode.gain.value = volume;
-  source.buffer = audioBuffers[index];
-  source.connect(gainNode).connect(audioCtx.destination);
-  source.start(0);
-}
-
-// ==== LEGEND TOGGLE ====
-function toggleLegend() {
-  const panel = document.getElementById("legendPanel");
-  const button = document.querySelector(".legend-toggle");
-  const isVisible = panel.style.display === "block";
-  panel.style.display = isVisible ? "none" : "block";
-  button.textContent = isVisible ? "Show Settings" : "Hide Settings";
-}
-
-// ==== VOLUME SLIDER BINDING ====
-function bindVolumeSliders() {
-  document.querySelectorAll(".volume-slider").forEach(slider => {
-    const ringIndex = parseInt(slider.dataset.ring);
-    slider.value = ringVolumes[ringIndex];
-    slider.oninput = () => {
-      ringVolumes[ringIndex] = parseFloat(slider.value);
-    };
-  });
-}
-
-window.addEventListener("DOMContentLoaded", () => {
-  bindVolumeSliders();
-});
-
-// ==== SEGMENT LINES ====
-segmentInput.addEventListener("input", () => {
-  const val = parseInt(segmentInput.value);
-  if (val > 0) segmentCount = val;
-});
-
-// ==== QUANTIZING ====
-quantizeToggle.addEventListener("click", () => {
-  isQuantized = !isQuantized;
-  quantizeToggle.classList.toggle("toggle-on", isQuantized);
-  quantizeToggle.classList.toggle("toggle-off", !isQuantized);
-  quantizeToggle.textContent = isQuantized ? "Strict" : "Loose";
-});
-
-// ==== EASING BACK TO TOP ====
-easeToggle.addEventListener("click", () => {
-  //force rotation to stop before applying easing to avoid bug
-  if (isRotating) {
-    isRotating=false;
-    currentSpeed = parseFloat(speedSlider.value);
-
-    //console.log ("currentSpeed set to " , currentSpeed, " from slider value: ", speedSlider.value);
-
-    startToggle.textContent="Start";
-    if (easeInterval) {
-      clearInterval(easeInterval);
-      easeInterval=null;
-      easing=false;
-    }
-  }
-  easingToZero = !easingToZero;
-  easeToggle.textContent = easingToZero ? "On" : "Off";
-});
-
-// ==== PROCESS SPEED ====
-speedSlider.addEventListener("input", () => {
-  currentSpeed = parseFloat(speedSlider.value);
-
-        //console.log ("currentSpeed set to " , currentSpeed, " from slider value: ", speedSlider.value);
-
-      desiredSpeed = currentSpeed;
-      //console.log("currentSpeed: " + currentSpeed);
-      //console.log("desiredSpeed: " + desiredSpeed);
-});
-
-// ==== IMPORT PATTERN ====
-document.getElementById("importBtn").addEventListener("change", function (e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function (event) {
-  try {
-    const data = JSON.parse(event.target.result);
-
-    // Handle both old and new format (just an array = legacy tick format)
-    if (Array.isArray(data)) {
-      ticks = data;
-    } else if (Array.isArray(data.ticks)) {
-      ticks = data.ticks;
-
-      // Safe volume fallback
-      ringVolumes = Array.from({ length: circleCount }, (_, i) =>
-        typeof data.volumes?.[i] === 'number' ? data.volumes[i] : 1
-      );
-
-      // Update sliders visually to match loaded volume
-      document.querySelectorAll(".volume-slider").forEach(slider => {
-        const ringIndex = parseInt(slider.dataset.ring);
-        slider.value = ringVolumes[ringIndex];
-        // Rebind event listener to update the current ringVolumes array
-        slider.oninput = () => {
-          ringVolumes[ringIndex] = parseFloat(slider.value);
-        };
-      });
-
-    }
-  } catch (err) {
-    alert("Failed to load pattern.");
-    console.error(err);
-  }
-  drawFrameOnce();
-  };
-  reader.readAsText(file);
-});
-
-// ==== EXPORT PATTERN ====
-function exportPattern() {
-  const filename = prompt("Enter filename for export:", "pattern.json");
-  if (!filename) return;
-    const exportData = {
-    ticks: ticks,
-    volumes: ringVolumes
-  };
-  const blob = new Blob([JSON.stringify(exportData)], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-}
-
-// ====  SPACE BAR TO STOP/START ====
-startToggle.addEventListener("click", handleRotationToggle);
-document.addEventListener("keydown", (e) => {
-  if (e.code === "Space") {
-    e.preventDefault();
-    handleRotationToggle();
-  }
-});
-
-
-// ==== HANDLE ROTATION TOGGLE WITH LOOP GUARD ====
-function handleRotationToggle() {
-  initAudio().then(() => {
-    if (isRotating) {
-      if (easingToZero) {
-        easingToZeroStart();
-      } else {
-        isRotating = false;
-        currentSpeed = parseFloat(speedSlider.value);
-        startToggle.textContent = "Start";
-        if (easeInterval) {
-          clearInterval(easeInterval);
-          easeInterval = null;
-          easing = false;
-        }
-        if (animationFrameId !== null) {
-          cancelAnimationFrame(animationFrameId);
-          animationFrameId = null;
-        }
-      }
-    } else {
-      isRotating = true;
-      startToggle.textContent = "Stop";
-      if (animationFrameId === null) {
-        animationFrameId = requestAnimationFrame(draw);
-      }
-    }
-  });
-}
-
-// ==== EASING TO ZERO WITH FRAME GUARD ====
-function easingToZeroStart() {
-  if (!isRotating) return;
-
-  isRotating = false;
-  easing = true;
-
-  if (animationFrameId !== null) {
-    cancelAnimationFrame(animationFrameId);
-    animationFrameId = null;
-  }
-
-  easeInterval = setInterval(() => {
-    let diff = (2 * Math.PI - rotation) % (2 * Math.PI);
-    if (diff < 0.01) {
-      rotation = 0;
-      clearInterval(easeInterval);
-      easeInterval = null;
-      easing = false;
-      startToggle.textContent = "Start";
-      currentSpeed = parseFloat(speedSlider.value);
-    } else {
-      rotation += diff * 0.15;
-      rotation %= 2 * Math.PI;
-    }
-    drawFrameOnce();
-  }, 1000 / 60);
-}
-
-
-canvas.addEventListener("click", (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-
-  const dx = x - centerX;
-  const dy = y - centerY;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-
-  const circleIndex = Math.floor((distance - minRadius + radiusStep / 2) / radiusStep);
-  if (circleIndex < 0 || circleIndex >= circleCount) return;
-
-  let angle = Math.atan2(dy, dx) - rotation;
-
-  if (isQuantized) {
-    const segmentAngle = (2 * Math.PI) / segmentCount;
-    angle = Math.round(angle / segmentAngle) * segmentAngle;
-  }
-
-  // Normalize angle to [0, 2π)
-  angle = (angle + 2 * Math.PI) % (2 * Math.PI);
-
-  // Check for existing tick at same angle & ring
-  const existingIndex = ticks.findIndex(t =>
-    t.circleIndex === circleIndex &&
-    Math.abs(t.angle - angle) < 0.01
-  );
-
-  if (existingIndex >= 0) {
-    ticks.splice(existingIndex, 1); // remove
-  } else {
-    const sound = sounds[circleIndex];
-    ticks.push({ circleIndex, angle, sound });
-  }
-
-  drawFrameOnce(); // update visual
-});
-
-
-
-drawCount = 0;
-/*
-setInterval(() => {
-  console.log("Frames per second:", drawCount);
-  drawCount = 0;
-}, 1000);
-*/
-
-function draw() {
-  ctx.clearRect(0, 0, width, height);
-  drawCount++;
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY - maxRadius - 30);
-  ctx.lineTo(centerX, centerY - maxRadius - 10);
-  ctx.strokeStyle = "red";
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  ctx.save();
-  ctx.translate(centerX, centerY);
-  ctx.rotate(rotation);
-  ctx.strokeStyle = "#044";
-  ctx.lineWidth = 1;
-  for (let i = 0; i < segmentCount; i++) {
-    const angle = i * (2 * Math.PI / segmentCount);
-    const x = Math.cos(angle) * (maxRadius + 20);
-    const y = Math.sin(angle) * (maxRadius + 20);
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  }
-  ctx.restore();
+<!DOCTYPE html>
+<html lang="en">
+<head>
   
-  //Draw rings
-  for (let i = 0; i < circleCount; i++) {
-    const radius = minRadius + i * radiusStep;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = circleColors[i];
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-  // Draw ticks
-  for (const tick of ticks) {
-    const radius = minRadius + tick.circleIndex * radiusStep;
-    const angle = tick.angle + rotation;
-    const x = centerX + Math.cos(angle) * radius;
-    const y = centerY + Math.sin(angle) * radius;
-
-    ctx.beginPath();
-    ctx.arc(x, y, TICK_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = circleColors[tick.circleIndex];
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(x, y, CENTER_DOT_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = "#111";
-    ctx.fill();
-  }
-
-    if (isRotating && !easing) {
-      previousRotation = rotation;
-      rotation += currentSpeed / 60;
-      rotation %= 2 * Math.PI;
-      if (currentSpeed > 6){console.warn("Unusually high current speed detected: ", currentSpeed);}
-      //console.log("previousRotation: " + previousRotation);
-      //console.log("rotation: " + rotation);
+  <meta charset="UTF-8" />
+  <title>Rhythm Circle</title>
+  <style>
+    html, body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+      font-family: sans-serif;
     }
-
-
-  const now = Date.now();
-  const triggerAngle = 3 * Math.PI / 2;
-  const triggerRange = Math.PI / 32;
-
-  for (const tick of ticks) {
-    const prev = (tick.angle + previousRotation) % (2 * Math.PI);
-    const curr = (tick.angle + rotation) % (2 * Math.PI);
-    const crossedTrigger = prev < triggerAngle - triggerRange && curr >= triggerAngle - triggerRange;
-
-    if (isRotating && crossedTrigger) {
-      const lastPlayed = activeTickCooldowns.get(tick) || 0;
-      if (now - lastPlayed > TICK_SOUND_COOLDOWN) {
-        const index = sounds.indexOf(tick.sound);
-        if (index !== -1) playSound(index, ringVolumes[tick.circleIndex]);
-        activeTickCooldowns.set(tick, now);
-      }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
-  }
-  if (isRotating && !easing) {
-    animationFrameId = requestAnimationFrame(draw);
-    } else {
-    animationFrameId = null;
-  }
-}
+    button, input[type="range"], input[type="file"] {
+      background: #222;
+      color: #fff;
+      border: 2px solid #0ff;
+      border-radius: 5px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    label {
+      color: #0ff;
+    }
+    #startToggle{
+      background-color: #0ff;
+      color:#222;
+    }
+    #legendPanel {
+      background: rgba(0, 0, 0, 0.85);
+      border: 2px solid #0ff;
+      color: white;
+      padding: 10px;
+      display:none;
+    }
+    .legend-toggle {
+      background: #222;
+      color: #FFF;
+      font-weight: bold;
+      border: 1px solid #0FF;
+      padding: 4px 10px;
+      margin-bottom: 5px;
+      cursor: pointer;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
 
-draw();
+    }
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .settingsPanelControl {
+      padding-top:12px;
+     } 
+    #quantizeToggle.toggle-on {
+    background: #0f0;
+    color: #000;
+    }
+    #quantizeToggle.toggle-off {
+      background: #444;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <button id="startToggle" title="Press space bar to start or stop">Start</button>
+    <!--<label for="speedSlider">Speed</label>-->
+    <input type="range" id="speedSlider" min="0.01" max="10" value="2.5" step="0.01" title="Speed">
+    <div>
+      <button class="legend-toggle" onclick="toggleLegend()">Show Settings</button>
+      <div id="legendPanel">
+        <div class="legend-item"><div class="legend-color" style="background:#ff4444"></div>clave:  <input type="range" class="volume-slider" data-ring="0" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#ff9900"></div>campana:  <input type="range" class="volume-slider" data-ring="1" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#ffee00"></div>guiro:  <input type="range" class="volume-slider" data-ring="2" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#66dd22"></div>low conga:  <input type="range" class="volume-slider" data-ring="3" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#00cccc"></div>high conga:  <input type="range" class="volume-slider" data-ring="4" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#2266ff"></div>timbale:  <input type="range" class="volume-slider" data-ring="5" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#9922ff"></div>bajo:  <input type="range" class="volume-slider" data-ring="6" min="0" max="1" step="0.01" value="1"></div>
+        <div class="legend-item"><div class="legend-color" style="background:#ff22bb"></div>piano:  <input type="range" class="volume-slider" data-ring="7" min="0" max="1" step="0.01" value="1"></div>
+        <div class="settingsPanelControl">
+          <label FOR="segmentInput">Segments </label>
+          <input type="number" id="segmentInput" min="1" value="16">
+        </div>
+        <div class="settingsPanelControl">
+          <label for="quantizeToggle">Only allow sounds on segment lines</label> 
+          <button id="quantizeToggle" class="toggle-on">Strict</button>
+        </div>
+        <div class="settingsPanelControl">
+          <label for="exportBtn">Export Pattern </label>
+          <button onclick="exportPattern()" id="exportBtn">Name your export</button>
+        </div>
+        <div class="settingsPanelControl">  
+          <label for="importBtn">Import Pattern </label>
+          <input type="file" name="importBtn" id="importBtn" accept=".json" />
+        </div>
+        <div class="settingsPanelControl">
+          <label>
+            Stop at Top
+            <button id="easeToggle" class="toggle-on">On</button>
+          </label>
+        </div>
+      </div>
+    </div>
+  
+  </div>
+  <canvas id="canvas"></canvas>
+  <script src="sounds.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
