@@ -1,5 +1,7 @@
 // This file contains only base64-encoded audio data.
 // DO NOT include executable scripts or functions here.
+// https://base64.guru/converter/encode/audio can convert binary audio files to base64. So can node
+// node -e "console.log(require('fs').readFileSync('audiofilename.ext', 'base64'))"
 
     // Base64 sounds
     const base64Sounds = {
