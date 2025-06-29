@@ -1,4 +1,4 @@
-# rhythmcircle
+# Beat Disc
 A visualization of time offering the ability to mark its passage with eight sounds
 
 The code is 100% html, css, javascript, and json.
