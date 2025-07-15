@@ -30,9 +30,9 @@
       gap: 10px;
     }
     button, input[type="range"], input[type="file"] {
-      background: #222;
+      background: transparent;
       color: #fff;
-      border: 2px solid #0ff;
+      border: transparent;
       border-radius: 5px;
       padding: 6px 12px;
       cursor: pointer;
@@ -44,8 +44,8 @@
       background-color:transparent;
       color:#f00;
       border-radius: 100%;
-      height:3.5rem;
-      width:3.5rem;
+      height:8vw;
+      width:8vw;
       position:absolute;
       padding:0;
       text-align: center;
@@ -67,9 +67,6 @@
       background: #222;
       color: #FFF;
       font-weight: bold;
-      border: 1px solid #0FF;
-      padding: 4px 10px;
-      margin-bottom: 5px;
       cursor: pointer;
     }
     .legend-item {
@@ -114,18 +111,39 @@
       'GRAD' 0,
       'opsz' 24;
     }
-    #startToggle.material-symbols-outlined {
-      font-size:3rem!important;
+   .material-symbols-outlined {
+      font-size:3vw!important;
     }
+   #startToggle.material-symbols-outlined {
+      font-size:5vw!important;
+    } 
 
-
-   /* @media screen and (max-width: 980px)
+   @media only screen and (-webkit-device-pixel-ratio: 3)
       {
-      #controls {width:800px}
-      #controls button {height:4rem}
-      #shareBtn {height:4rem}
+        #startToggle{
+          height:10vw;
+          width:10vw;  
+        }
+        #startToggle.material-symbols-outlined {
+          font-size:10vw!important;
+        } 
+        .material-symbols-outlined {
+          font-size:10vw!important;
+        }
       }
-      */
+     @media only screen and (-webkit-device-pixel-ratio: 4)
+      {
+        #startToggle{
+          height:20vw;
+          width:20vw;  
+        }
+        #startToggle.material-symbols-outlined {
+          font-size:20vw!important;
+        } 
+        .material-symbols-outlined {
+          font-size:20vw!important;
+        }
+      }
 
   </style>
 
