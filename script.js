@@ -113,10 +113,10 @@ function playSound(index, volume = 1) {
 // ==== LEGEND TOGGLE ====
 function toggleLegend() {
   const panel = document.getElementById("legendPanel");
-  const button = document.querySelector(".legend-toggle");
+  const button = document.getElementById("legend-toggle");
   const isVisible = panel.style.display === "block";
   panel.style.display = isVisible ? "none" : "block";
-  button.textContent = isVisible ? "Show Settings" : "Hide Settings";
+  button.textContent = isVisible ? "settings" : "close";
 }
 
 
@@ -144,7 +144,7 @@ easeToggle.addEventListener("click", () => {
 
     //console.log ("currentSpeed set to " , currentSpeed, " from slider value: ", speedSlider.value);
 
-    startToggle.textContent="Start";
+    startToggle.textContent="play_circle";
     if (easeInterval) {
       clearInterval(easeInterval);
       easeInterval=null;
@@ -280,7 +280,7 @@ function handleRotationToggle() {
       } else {
         isRotating = false;
         currentSpeed = parseFloat(speedSlider.value);
-        startToggle.textContent = "Start";
+        startToggle.textContent = "play_circle";
         if (easeInterval) {
           clearInterval(easeInterval);
           easeInterval = null;
@@ -293,7 +293,8 @@ function handleRotationToggle() {
       }
     } else {
       isRotating = true;
-      startToggle.textContent = "Stop";
+      startToggle.textContent = "stop_circle";
+      startToggle.classList
       if (animationFrameId === null) {
         animationFrameId = requestAnimationFrame(draw);
       }
@@ -320,7 +321,7 @@ function easingToZeroStart() {
       clearInterval(easeInterval);
       easeInterval = null;
       easing = false;
-      startToggle.textContent = "Start";
+      startToggle.textContent = "play_circle";
       currentSpeed = parseFloat(speedSlider.value);
     } else {
       rotation += diff * 0.15;
