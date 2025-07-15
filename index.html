@@ -47,11 +47,14 @@
       height:3.5rem;
       width:3.5rem;
       position:absolute;
+      padding:0;
+      text-align: center;
       left: 0;
       right: 0;
       top: 0;
       bottom: 0;
       margin: auto;
+      border:0;
     }
     #legendPanel {
       background: rgba(0, 0, 0, 0.85);
@@ -109,8 +112,12 @@
       'FILL' 0,
       'wght' 400,
       'GRAD' 0,
-      'opsz' 24
+      'opsz' 24;
     }
+    .material-symbols-outlined {
+      font-size:3rem!important;
+    }
+
 
    /* @media screen and (max-width: 980px)
       {
@@ -125,9 +132,8 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=play_circle" />
 </head>
 <body>
-<button id="startToggle" title="Press space bar to start or stop"><span class="material-symbols-outlined">
-play_circle
-</span></button>
+<button id="startToggle" title="Press space bar to start or stop" class="material-symbols-outlined">play_circle</button>
+<!-- next to prevent this span from interfereing with the tap on the button, then to toggle it to a stop button on press-->
   <div id="controls">
     <div>
       <button class="legend-toggle" onclick="toggleLegend()">Show Settings</button>
