@@ -44,8 +44,8 @@
       background-color:transparent;
       color:#f00;
       border-radius: 100%;
-      height:8vw;
-      width:8vw;
+      height:8vh;
+      width:8vh;
       position:absolute;
       padding:0;
       text-align: center;
@@ -112,38 +112,30 @@
       'opsz' 24;
     }
    .material-symbols-outlined {
-      font-size:3vw!important;
+      font-size:3vh!important;
     }
    #startToggle.material-symbols-outlined {
-      font-size:5vw!important;
+      font-size:5vh!important;
     } 
 
-   @media only screen and (-webkit-device-pixel-ratio: 3)
-      {
-        #startToggle{
-          height:10vw;
-          width:10vw;  
+  @media 
+  (-webkit-min-device-pixel-ratio: 2), 
+  (min-resolution: 192dpi), 
+  (min-resolution: 2dppx) {
+  
+  /* High pixel density styles go here */
+ #startToggle{
+          height:10vh;
+          width:10vh;  
         }
         #startToggle.material-symbols-outlined {
-          font-size:10vw!important;
+          font-size:10vh!important;
         } 
         .material-symbols-outlined {
-          font-size:10vw!important;
+          font-size:8vh!important;
         }
-      }
-     @media only screen and (-webkit-device-pixel-ratio: 4)
-      {
-        #startToggle{
-          height:20vw;
-          width:20vw;  
-        }
-        #startToggle.material-symbols-outlined {
-          font-size:20vw!important;
-        } 
-        .material-symbols-outlined {
-          font-size:20vw!important;
-        }
-      }
+}
+
 
   </style>
 
