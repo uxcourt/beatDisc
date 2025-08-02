@@ -46,7 +46,8 @@
       border-radius: 100%;
       height:5vh;
       width:5vh;
-      position:absolute;
+      position:relative;
+      z-index:1;
       padding:0;
       text-align: center;
       left: 0;
@@ -124,15 +125,23 @@
       display: flex;
       justify-content: center;
       align-items: center;         /* centers both axes */
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;                  /* behind the button */
+    }
     }
 
-  @media 
+  /* @media 
   (-webkit-min-device-pixel-ratio: 2), 
   (min-resolution: 192dpi), 
   (min-resolution: 2dppx) {
-  
+  */
       /* High pixel density styles go here */
-      #startToggle{
+  /*    #startToggle{
         height:5vh;
         width:5vh;
       }
@@ -146,7 +155,7 @@
       #legendPanel{
         font-size: 2rem;
       }
-  }
+  } */
   </style>
 
   <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
