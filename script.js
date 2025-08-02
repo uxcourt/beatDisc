@@ -58,11 +58,6 @@ function drawFrameOnce() {
   animationFrameId = null;
   draw();
   animationFrameId = savedId;
-  // Reveal the button wrapper once the layout is stable
-  const buttonWrapper = document.getElementById("buttonWrapper");
-  if (buttonWrapper) {
-    buttonWrapper.style.visibility = "visible";
-  } 
 }
 
 function resize() {
@@ -85,6 +80,11 @@ function resize() {
   maxRadius = maxUsable * 0.5;
   radiusStep = (maxRadius - minRadius) / circleCount;
   drawFrameOnce();
+  // Reveal button only after everything is measured and rendered
+  const buttonWrapper = document.getElementById("buttonWrapper");
+  if (buttonWrapper) {
+    buttonWrapper.style.visibility = "visible";
+  }
 }
 
 
