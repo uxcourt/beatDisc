@@ -58,6 +58,11 @@ function drawFrameOnce() {
   animationFrameId = null;
   draw();
   animationFrameId = savedId;
+  // Reveal the button wrapper once the layout is stable
+  const buttonWrapper = document.getElementById("buttonWrapper");
+  if (buttonWrapper) {
+    buttonWrapper.style.visibility = "visible";
+  } 
 }
 
 function resize() {
