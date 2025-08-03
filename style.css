@@ -83,12 +83,13 @@ html, body {
       z-index: 3; /* to keep it on top of the canvas */
     }
     #speedSlider{
-      position:absolute;
+      position:fixed;
       bottom:10px;
       left:10px;
       right:10px;
       height:10px;
       z-index: 4;  /* to keep it on top of the canvas */
+      pointer-events: auto;
     }
     .material-symbols-outlined {
       font-variation-settings:
