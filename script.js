@@ -601,9 +601,11 @@ function bindVolumeSliders() {
 function positionStartToggleToCanvasCenter() {
   const btn = document.getElementById("startToggle");
   if (!btn) return;
+  // Force iOS to recalc visible viewport
+  window.scrollTo(0, 0);
+  const centerX = (window.visualViewport?.width || window.innerWidth) / 2;
+  const centerY = (window.visualViewport?.height || window.innerHeight) / 2;
 
-  const centerX = window.innerWidth / 2;
-  const centerY = window.innerHeight / 2;
 
   btn.style.left = `${centerX}px`;
   btn.style.top = `${centerY}px`;
