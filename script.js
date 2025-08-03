@@ -600,24 +600,18 @@ function bindVolumeSliders() {
 }*/
 function positionStartToggleToCanvasCenter() {
   const btn = document.getElementById("startToggle");
-  const canvas = document.getElementById("canvas");
-  if (!btn || !canvas) return;
+  if (!btn) return;
 
-  const rect = canvas.getBoundingClientRect();
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
 
-  if (rect.width === 0 || rect.height === 0) {
-    console.warn("Canvas not fully laid out yet. Skipping centering.");
-    return;
-  }
-
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
   btn.style.left = `${centerX}px`;
   btn.style.top = `${centerY}px`;
   btn.style.visibility = "visible";
 
-  //console.log("Button centered at", centerX, centerY);
+  // console.log("Button centered using viewport:", centerX, centerY);
 }
+
 
 function waitForCanvasStabilizationThenPositionButton(maxWait = 2000) {
   const start = performance.now();
