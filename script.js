@@ -44,6 +44,8 @@ let audioBuffers = [];
 
 let drawCount = 0;
 let lastFrameTime = null;
+let lastCanvasWidth = 0;
+let lastCanvasHeight = 0;
 
 /*
 setInterval(() => {
@@ -603,12 +605,48 @@ function positionStartToggleToCanvasCenter() {
 
   const rect = canvas.getBoundingClientRect();
 
+  if (rect.width === 0 || rect.height === 0) {
+    console.warn("Canvas not fully laid out yet. Skipping centering.");
+    return;
+  }
+
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
-
   btn.style.left = `${centerX}px`;
   btn.style.top = `${centerY}px`;
   btn.style.visibility = "visible";
+
+  //console.log("Button centered at", centerX, centerY);
+}
+
+function waitForCanvasStabilizationThenPositionButton(maxWait = 2000) {
+  const start = performance.now();
+  // Force reset so the first check always triggers
+  lastCanvasWidth = 0;
+  lastCanvasHeight = 0;
+
+  function checkCanvasSize() {
+    const rect = canvas.getBoundingClientRect();
+
+    const width = Math.round(rect.width);
+    const height = Math.round(rect.height);
+
+    if ((width !== lastCanvasWidth || height !== lastCanvasHeight) && width > 0 && height > 0) {
+      // Size changed — update and wait a bit more
+      lastCanvasWidth = width;
+      lastCanvasHeight = height;
+
+      if (performance.now() - start < maxWait) {
+        requestAnimationFrame(checkCanvasSize); // check again next frame
+        return;
+      }
+    }
+
+    // Stabilized — now position the button
+    positionStartToggleToCanvasCenter();
+  }
+
+  checkCanvasSize();
 }
 
 
@@ -619,13 +657,12 @@ window.addEventListener("DOMContentLoaded", tryLoadPatternFromURL);
 window.addEventListener("resize", () => {
   resize();
   //fixViewportShiftAfterRotation();
-  positionStartToggleToCanvasCenter();
+  waitForCanvasStabilizationThenPositionButton();
 });
 window.addEventListener("orientationchange", () => {
-  setTimeout(() => {
-    resize(); 
-    //fixViewportShiftAfterRotation(); // force proper alignment
-    positionStartToggleToCanvasCenter();
-  }, 300); // adjust if needed
+  resize(); // resize canvas immediately
+  waitForCanvasStabilizationThenPositionButton();
 });
+
+
 resize();
