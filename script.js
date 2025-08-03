@@ -42,7 +42,7 @@ let audioCtx = null;
 let audioBuffers = [];
 let drawCount = 0;
 let lastFrameTime = null;
-let debugFlag = false;
+let debugFlag = true;
 
 // ==== SAFE ONE-OFF FRAME ====
 function drawFrameOnce() {
@@ -549,23 +549,21 @@ function bindVolumeSliders() {
 
 function positionStartToggleToCanvasCenter() {
   const btn = document.getElementById("startToggle");
-  if (!btn) return;
+  const canvas = document.getElementById("canvas");
+  if (!btn || !canvas) return;
 
-  const viewportWidth = window.visualViewport?.width || window.innerWidth;
-  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  const rect = canvas.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
 
-  const centerX = viewportWidth / 2;
-  const centerY = viewportHeight / 2;
-
-  const offsetX = window.visualViewport?.offsetLeft || 0;
-  const offsetY = window.visualViewport?.offsetTop || 0;
-
-  btn.style.left = `${centerX + offsetX}px`;
-  btn.style.top = `${centerY + offsetY}px`;
+  btn.style.left = `${centerX}px`;
+  btn.style.top = `${centerY}px`;
   btn.style.visibility = "visible";
 }
 
+
 function waitForCanvasStabilizationThenPositionButton() {
+  if (debugFlag){console.log("in waitForCanvasStabilizationThenPositionButton")}
   let lastWidth = 0;
   let lastHeight = 0;
   let attempts = 0;
@@ -606,7 +604,7 @@ window.addEventListener("load", () => {
   waitForCanvasStabilizationThenPositionButton();
 });
 window.addEventListener("resize", resize);
-window.addEventListener("orientationchange", waitForCanvasStabilizationThenPositionButton());
+window.addEventListener("orientationchange", waitForCanvasStabilizationThenPositionButton);
 
 
 resize();
