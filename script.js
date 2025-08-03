@@ -80,11 +80,9 @@ function resize() {
   maxRadius = maxUsable * 0.5;
   radiusStep = (maxRadius - minRadius) / circleCount;
   drawFrameOnce();
-  // Reveal button only after everything is measured and rendered
-  const buttonWrapper = document.getElementById("buttonWrapper");
-  if (buttonWrapper) {
-    buttonWrapper.style.visibility = "visible";
-  }
+  const wrapper = document.getElementById("startToggle");
+  if (wrapper) wrapper.style.visibility = "visible";
+  //positionStartToggle();
 }
 
 
@@ -206,6 +204,7 @@ function loadPattern(pattern) {
   console.log("in loadPattern, outside of if tests, just before drawing frame once")
   resize();
   drawFrameOnce(); // Make sure the pattern is visible immediately
+  //positionStartToggle();
 }
 // ==== LOAD LISTENER FOR INBOUND PATTERN
 window.addEventListener("load", () => {
@@ -547,6 +546,22 @@ function tryLoadPatternFromURL() {
     }
   }
 }
+// ==== POSITIONING THE START BUTTON ====
+/*function positionStartToggle() {
+  const btn = document.getElementById("startToggle");
+  if (!btn || typeof centerX === "undefined" || typeof centerY === "undefined") return;
+
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+
+  // Convert centerX/Y from device pixels to CSS pixels
+  const cssX = rect.left + centerX / dpr;
+  const cssY = rect.top + centerY / dpr;
+
+  btn.style.left = `${cssX}px`;
+  btn.style.top = `${cssY}px`;
+  btn.style.visibility = "visible";
+}*/
 
 // ==== VOLUME SLIDER BINDING ====
 function bindVolumeSliders() {
@@ -564,5 +579,10 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 window.addEventListener("DOMContentLoaded", tryLoadPatternFromURL);
 window.addEventListener("resize", resize);
-window.addEventListener("orientationchange", () => setTimeout(resize, 300));
+window.addEventListener("orientationchange", () => {
+  setTimeout(() => {
+    resize();
+    //positionStartToggle();
+  }, 300);
+});
 resize();
