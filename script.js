@@ -44,8 +44,6 @@ let audioBuffers = [];
 
 let drawCount = 0;
 let lastFrameTime = null;
-let lastCanvasWidth = 0;
-let lastCanvasHeight = 0;
 
 /*
 setInterval(() => {
@@ -82,9 +80,6 @@ function resize() {
   maxRadius = maxUsable * 0.5;
   radiusStep = (maxRadius - minRadius) / circleCount;
   drawFrameOnce();
-  const wrapper = document.getElementById("startToggle");
-  if (wrapper) wrapper.style.visibility = "visible";
-  //positionStartToggle();
 }
 
 
@@ -206,8 +201,6 @@ function loadPattern(pattern) {
   console.log("in loadPattern, outside of if tests, just before drawing frame once")
   resize();
   drawFrameOnce(); // Make sure the pattern is visible immediately
-  //positionStartToggle();
-  positionStartToggleToCanvasCenter();
 }
 // ==== LOAD LISTENER FOR INBOUND PATTERN
 window.addEventListener("load", () => {
@@ -549,22 +542,6 @@ function tryLoadPatternFromURL() {
     }
   }
 }
-// ==== POSITIONING THE START BUTTON ====
-/*function positionStartToggle() {
-  const btn = document.getElementById("startToggle");
-  if (!btn || typeof centerX === "undefined" || typeof centerY === "undefined") return;
-
-  const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-
-  // Convert centerX/Y from device pixels to CSS pixels
-  const cssX = rect.left + centerX / dpr;
-  const cssY = rect.top + centerY / dpr;
-
-  btn.style.left = `${cssX}px`;
-  btn.style.top = `${cssY}px`;
-  btn.style.visibility = "visible";
-}*/
 
 // ==== VOLUME SLIDER BINDING ====
 function bindVolumeSliders() {
@@ -577,97 +554,57 @@ function bindVolumeSliders() {
   });
 }
 
-// ==== COMPENSATE FOR IPAD VEIWPORT CALC LATENCY ====
-/*function fixViewportShiftAfterRotation() {
-  setTimeout(() => {
-    // Trigger forced layout reflow after rotation
-    const toggle = document.getElementById("startToggle");
-    if (toggle) {
-      toggle.style.display = "none";
-      requestAnimationFrame(() => {
-        toggle.style.display = "block";
-      });
-    }
 
-    const slider = document.getElementById("speedSlider");
-    if (slider) {
-      slider.style.display = "none";
-      requestAnimationFrame(() => {
-        slider.style.display = "block";
-      });
-    }
-  }, 500); // Give the browser enough time to update viewport
-}*/
 function positionStartToggleToCanvasCenter() {
   const btn = document.getElementById("startToggle");
   if (!btn) return;
-  // Force iOS to recalc visible viewport
-  window.scrollTo(0, 0);
-  const centerX = (window.visualViewport?.width || window.innerWidth) / 2;
-  const centerY = (window.visualViewport?.height || window.innerHeight) / 2;
 
+  const viewportWidth = window.visualViewport?.width || window.innerWidth;
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
 
-  btn.style.left = `${centerX}px`;
-  btn.style.top = `${centerY}px`;
+  const centerX = viewportWidth / 2;
+  const centerY = viewportHeight / 2;
+
+  const offsetX = window.visualViewport?.offsetLeft || 0;
+  const offsetY = window.visualViewport?.offsetTop || 0;
+
+  btn.style.left = `${centerX + offsetX}px`;
+  btn.style.top = `${centerY + offsetY}px`;
   btn.style.visibility = "visible";
-
-  // console.log("Button centered using viewport:", centerX, centerY);
 }
-
 
 function waitForCanvasStabilizationThenPositionButton(maxWait = 2000) {
+  const canvas = document.getElementById("canvas");
   const start = performance.now();
-  // Force reset so the first check always triggers
-  lastCanvasWidth = 0;
-  lastCanvasHeight = 0;
+  let lastRect = canvas.getBoundingClientRect();
 
-  function checkCanvasSize() {
-    const rect = canvas.getBoundingClientRect();
+  function poll() {
+    const currentRect = canvas.getBoundingClientRect();
+    const rectChanged = Math.abs(currentRect.width - lastRect.width) > 1 ||
+                        Math.abs(currentRect.height - lastRect.height) > 1;
 
-    const width = Math.round(rect.width);
-    const height = Math.round(rect.height);
-
-    if ((width !== lastCanvasWidth || height !== lastCanvasHeight) && width > 0 && height > 0) {
-      // Size changed — update and wait a bit more
-      lastCanvasWidth = width;
-      lastCanvasHeight = height;
-
-      if (performance.now() - start < maxWait) {
-        requestAnimationFrame(checkCanvasSize); // check again next frame
-        return;
-      }
+    if (rectChanged && performance.now() - start < maxWait) {
+      lastRect = currentRect;
+      requestAnimationFrame(poll);
+      return;
     }
 
-    // Stabilized — now position the button
+    // When stable, initialize canvas and position button
+    resize();
     positionStartToggleToCanvasCenter();
   }
-
-  checkCanvasSize();
+  poll();
 }
-
-
 window.addEventListener("DOMContentLoaded", () => {
   bindVolumeSliders();
+  tryLoadPatternFromURL(); // load pattern if hash exists
+  resize();                // trigger first canvas draw
 });
-window.addEventListener("DOMContentLoaded", tryLoadPatternFromURL);
-window.addEventListener("resize", () => {
-  resize();
-  //fixViewportShiftAfterRotation();
-  waitForCanvasStabilizationThenPositionButton();
-});
-window.addEventListener("orientationchange", () => {
-  resize(); // resize canvas immediately
-  waitForCanvasStabilizationThenPositionButton();
-});
+
 window.addEventListener("load", () => {
-  // Ensures proper canvas layout
-  resize();
-
-  // Try to force viewport recalculation
-  window.scrollTo(0, 0);
-
-  // Defer positioning until canvas stabilizes
   waitForCanvasStabilizationThenPositionButton();
 });
-
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 300));
 resize();
+
