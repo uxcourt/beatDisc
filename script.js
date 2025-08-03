@@ -38,19 +38,11 @@ let segmentCount = parseInt(segmentInput.value);
 let isQuantized = true;
 let ringVolumes = new Array(circleCount).fill(1);
 let ticks = [];
-
 let audioCtx = null;
 let audioBuffers = [];
-
 let drawCount = 0;
 let lastFrameTime = null;
-
-/*
-setInterval(() => {
-  console.log("Frames per second:", drawCount);
-  drawCount = 0;
-}, 1000);
-*/
+let debugFlag = false;
 
 // ==== SAFE ONE-OFF FRAME ====
 function drawFrameOnce() {
@@ -80,6 +72,10 @@ function resize() {
   maxRadius = maxUsable * 0.5;
   radiusStep = (maxRadius - minRadius) / circleCount;
   drawFrameOnce();
+  if(debugFlag){console.log("Canvas size", canvas.width, canvas.height);}
+  if(debugFlag){console.log("centerX:", centerX, "centerY:", centerY);}
+  if(debugFlag){console.log("minRadius:", minRadius, "maxRadius:", maxRadius, "radiusStep:", radiusStep);}
+
 }
 
 
@@ -202,6 +198,7 @@ function loadPattern(pattern) {
   resize();
   drawFrameOnce(); // Make sure the pattern is visible immediately
 }
+
 // ==== LOAD LISTENER FOR INBOUND PATTERN
 window.addEventListener("load", () => {
   const hash = location.hash.slice(1);
@@ -219,7 +216,6 @@ window.addEventListener("load", () => {
     }
   }
 });
-
 
 // ==== IMPORT PATTERN ====
 document.getElementById("importBtn").addEventListener("change", function (e) {
@@ -270,7 +266,6 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-
 // ==== HANDLE ROTATION TOGGLE WITH LOOP GUARD ====
 function handleRotationToggle() {
   initAudio().then(() => {
@@ -305,15 +300,12 @@ function handleRotationToggle() {
 // ==== EASING TO ZERO WITH FRAME GUARD ====
 function easingToZeroStart() {
   if (!isRotating) return;
-
   isRotating = false;
   easing = true;
-
   if (animationFrameId !== null) {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
   }
-
   easeInterval = setInterval(() => {
     let diff = (2 * Math.PI - rotation) % (2 * Math.PI);
     if (diff < 0.01) {
@@ -330,6 +322,7 @@ function easingToZeroStart() {
     drawFrameOnce();
   }, 1000 / 60);
 }
+
 // ==== SHARING ==== 
 function getCurrentPatternState() {
   return {
@@ -393,15 +386,7 @@ canvas.addEventListener("click", (e) => {
   }
 });
 
-
-
 drawCount = 0;
-/*
-setInterval(() => {
-  console.log("Frames per second:", drawCount);
-  drawCount = 0;
-}, 1000);
-*/
 
 // ==== SHARE BUTTON BINDING ====
 document.getElementById("shareBtn").addEventListener("click", () => {
@@ -423,7 +408,15 @@ document.getElementById("shareBtn").addEventListener("click", () => {
 });
 
 function draw() {
+  if (debugFlag){
+    console.log("draw() fired", "width:", width, "height:", height)
+    console.log("drawing test fill");
+    ctx.fillStyle = "red";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+};
+
   ctx.clearRect(0, 0, width, height);
+  ctx.beginPath();
   drawCount++;
   ctx.beginPath();
   ctx.moveTo(centerX, centerY - maxRadius - 30);
@@ -431,7 +424,6 @@ function draw() {
   ctx.strokeStyle = "red";
   ctx.lineWidth = 3;
   ctx.stroke();
-
   ctx.save();
   ctx.translate(centerX, centerY);
   ctx.rotate(rotation);
@@ -554,10 +546,68 @@ function bindVolumeSliders() {
   });
 }
 
+
+function positionStartToggleToCanvasCenter() {
+  const btn = document.getElementById("startToggle");
+  if (!btn) return;
+
+  const viewportWidth = window.visualViewport?.width || window.innerWidth;
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+
+  const centerX = viewportWidth / 2;
+  const centerY = viewportHeight / 2;
+
+  const offsetX = window.visualViewport?.offsetLeft || 0;
+  const offsetY = window.visualViewport?.offsetTop || 0;
+
+  btn.style.left = `${centerX + offsetX}px`;
+  btn.style.top = `${centerY + offsetY}px`;
+  btn.style.visibility = "visible";
+}
+
+function waitForCanvasStabilizationThenPositionButton() {
+  let lastWidth = 0;
+  let lastHeight = 0;
+  let attempts = 0;
+  const maxAttempts = 20;
+
+  const interval = setInterval(() => {
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+
+    if ((w !== lastWidth || h !== lastHeight)) {
+      lastWidth = w;
+      lastHeight = h;
+      attempts = 0; // Reset if still changing
+    } else {
+      attempts++;
+      if (attempts >= 3) {
+        clearInterval(interval);
+        positionStartToggleToCanvasCenter();
+      }
+    }
+
+    if (attempts > maxAttempts) {
+      clearInterval(interval);
+      positionStartToggleToCanvasCenter();
+    }
+  }, 100);
+}
+
+
 window.addEventListener("DOMContentLoaded", () => {
   bindVolumeSliders();
+  tryLoadPatternFromURL(); // load pattern if hash exists
+  resize();                // trigger first canvas draw
 });
-window.addEventListener("DOMContentLoaded", tryLoadPatternFromURL);
+
+window.addEventListener("load", () => {
+  waitForCanvasStabilizationThenPositionButton();
+});
 window.addEventListener("resize", resize);
-window.addEventListener("orientationchange", () => setTimeout(resize, 300));
+window.addEventListener("orientationchange", waitForCanvasStabilizationThenPositionButton());
+
+
 resize();
+
