@@ -205,6 +205,7 @@ function loadPattern(pattern) {
   resize();
   drawFrameOnce(); // Make sure the pattern is visible immediately
   //positionStartToggle();
+  positionStartToggleToCanvasCenter();
 }
 // ==== LOAD LISTENER FOR INBOUND PATTERN
 window.addEventListener("load", () => {
@@ -575,7 +576,7 @@ function bindVolumeSliders() {
 }
 
 // ==== COMPENSATE FOR IPAD VEIWPORT CALC LATENCY ====
-function fixViewportShiftAfterRotation() {
+/*function fixViewportShiftAfterRotation() {
   setTimeout(() => {
     // Trigger forced layout reflow after rotation
     const toggle = document.getElementById("startToggle");
@@ -594,6 +595,20 @@ function fixViewportShiftAfterRotation() {
       });
     }
   }, 500); // Give the browser enough time to update viewport
+}*/
+function positionStartToggleToCanvasCenter() {
+  const btn = document.getElementById("startToggle");
+  const canvas = document.getElementById("canvas");
+  if (!btn || !canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+
+  btn.style.left = `${centerX}px`;
+  btn.style.top = `${centerY}px`;
+  btn.style.visibility = "visible";
 }
 
 
@@ -603,12 +618,14 @@ window.addEventListener("DOMContentLoaded", () => {
 window.addEventListener("DOMContentLoaded", tryLoadPatternFromURL);
 window.addEventListener("resize", () => {
   resize();
-  fixViewportShiftAfterRotation();
+  //fixViewportShiftAfterRotation();
+  positionStartToggleToCanvasCenter();
 });
 window.addEventListener("orientationchange", () => {
   setTimeout(() => {
     resize(); 
-    fixViewportShiftAfterRotation(); // force proper alignment
+    //fixViewportShiftAfterRotation(); // force proper alignment
+    positionStartToggleToCanvasCenter();
   }, 300); // adjust if needed
 });
 resize();
