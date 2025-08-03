@@ -574,6 +574,29 @@ function bindVolumeSliders() {
   });
 }
 
+// ==== COMPENSATE FOR IPAD VEIWPORT CALC LATENCY ====
+function fixViewportShiftAfterRotation() {
+  setTimeout(() => {
+    // Trigger forced layout reflow after rotation
+    const toggle = document.getElementById("startToggle");
+    if (toggle) {
+      toggle.style.display = "none";
+      requestAnimationFrame(() => {
+        toggle.style.display = "block";
+      });
+    }
+
+    const slider = document.getElementById("speedSlider");
+    if (slider) {
+      slider.style.display = "none";
+      requestAnimationFrame(() => {
+        slider.style.display = "block";
+      });
+    }
+  }, 500); // Give the browser enough time to update viewport
+}
+
+
 window.addEventListener("DOMContentLoaded", () => {
   bindVolumeSliders();
 });
@@ -581,8 +604,8 @@ window.addEventListener("DOMContentLoaded", tryLoadPatternFromURL);
 window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", () => {
   setTimeout(() => {
-    resize();
-    //positionStartToggle();
-  }, 300);
+    resize(); 
+    fixViewportShiftAfterRotation(); // force proper alignment
+  }, 300); // adjust if needed
 });
 resize();
