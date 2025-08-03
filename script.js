@@ -601,7 +601,10 @@ window.addEventListener("DOMContentLoaded", () => {
   bindVolumeSliders();
 });
 window.addEventListener("DOMContentLoaded", tryLoadPatternFromURL);
-window.addEventListener("resize", resize);
+window.addEventListener("resize", () => {
+  resize();
+  fixViewportShiftAfterRotation();
+});
 window.addEventListener("orientationchange", () => {
   setTimeout(() => {
     resize(); 
