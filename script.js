@@ -659,6 +659,15 @@ window.addEventListener("orientationchange", () => {
   resize(); // resize canvas immediately
   waitForCanvasStabilizationThenPositionButton();
 });
+window.addEventListener("load", () => {
+  // Ensures proper canvas layout
+  resize();
 
+  // Try to force viewport recalculation
+  window.scrollTo(0, 0);
+
+  // Defer positioning until canvas stabilizes
+  waitForCanvasStabilizationThenPositionButton();
+});
 
 resize();
