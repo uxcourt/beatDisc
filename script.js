@@ -42,7 +42,7 @@ let audioCtx = null;
 let audioBuffers = [];
 let drawCount = 0;
 let lastFrameTime = null;
-let debugFlag = false;
+let debugFlag = true;
 
 // ==== SAFE ONE-OFF FRAME ====
 function drawFrameOnce() {
@@ -566,6 +566,7 @@ function positionStartToggleToCanvasCenter() {
 }
 
 function waitForCanvasStabilizationThenPositionButton() {
+  if (debugFlag){console.log("in waitForCanvasStabilizationThenPositionButton")}
   let lastWidth = 0;
   let lastHeight = 0;
   let attempts = 0;
@@ -606,7 +607,7 @@ window.addEventListener("load", () => {
   waitForCanvasStabilizationThenPositionButton();
 });
 window.addEventListener("resize", resize);
-window.addEventListener("orientationchange", waitForCanvasStabilizationThenPositionButton());
+window.addEventListener("orientationchange", waitForCanvasStabilizationThenPositionButton);
 
 
 resize();
