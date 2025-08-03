@@ -83,48 +83,48 @@ html, body {
       z-index: 2; /* to keep it on top of the canvas */
     }
   
-  :root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
+    :root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
 
-  #speedSlider{
-    position: fixed;
-    left: 10px;
-    right: 10px;
-    bottom: calc(10px + var(--safe-bottom)); /* ↑ avoid Android gesture area */
-    height: 32px;               /* bigger touch target */
-    z-index: 2147483647;        /* ↑ guarantees it sits above all overlays */
-    pointer-events: auto;
-    touch-action: manipulation;
-    -webkit-appearance: none;
-    appearance: none;
-    background: transparent;
-  }
+    #speedSlider{
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      bottom: calc(10px + var(--safe-bottom)); /* ↑ avoid Android gesture area */
+      height: 32px;               /* bigger touch target */
+      z-index: 2147483647;        /* ↑ guarantees it sits above all overlays */
+      pointer-events: auto;
+      touch-action: pan-x;
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+    }
 
-  /* WebKit track & thumb so it stays visible when appearance is none */
-  #speedSlider::-webkit-slider-runnable-track{
-    height: 8px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 999px;
-    border: 1px solid rgba(0,255,255,0.5);
-  }
-  #speedSlider::-webkit-slider-thumb{
-    -webkit-appearance: none;
-    appearance: none;
-    width: 24px; height: 24px; border-radius: 50%;
-    background: #0ff; border: 2px solid #111;
-    margin-top: -8px;           /* center over 8px track */
-  }
+    /* WebKit track & thumb so it stays visible when appearance is none */
+    #speedSlider::-webkit-slider-runnable-track{
+      height: 8px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 999px;
+      border: 1px solid rgba(0,255,255,0.5);
+    }
+    #speedSlider::-webkit-slider-thumb{
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px; height: 24px; border-radius: 50%;
+      background: #0ff; border: 2px solid #111;
+      margin-top: -8px;           /* center over 8px track */
+    }
 
-  /* Firefox */
-  #speedSlider::-moz-range-track{
-    height: 8px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 999px;
-    border: 1px solid rgba(0,255,255,0.5);
-  }
-  #speedSlider::-moz-range-thumb{
-    width: 24px; height: 24px; border-radius: 50%;
-    background: #0ff; border: 2px solid #111;
-  }
+    /* Firefox */
+    #speedSlider::-moz-range-track{
+      height: 8px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 999px;
+      border: 1px solid rgba(0,255,255,0.5);
+    }
+    #speedSlider::-moz-range-thumb{
+      width: 24px; height: 24px; border-radius: 50%;
+      background: #0ff; border: 2px solid #111;
+    }
 
 
     .material-symbols-outlined {
