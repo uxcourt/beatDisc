@@ -87,10 +87,26 @@ html, body {
       bottom:10px;
       left:10px;
       right:10px;
-      height:10px;
+      height:16px;
       z-index: 3;  /* to keep it on top of the canvas */
       pointer-events: auto;
       touch-action: manipulation;    /* hint for Android */
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    
+    #speedSlider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+    }
+
+    #speedSlider::-moz-range-thumb {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
     }
     .material-symbols-outlined {
       font-variation-settings:
