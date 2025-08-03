@@ -606,12 +606,8 @@ window.addEventListener("load", () => {
   waitForCanvasStabilizationThenPositionButton();
 });
 window.addEventListener("resize", resize);
-window.addEventListener("orientationchange", () => {
-  setTimeout(() => {
-    resize();
-    waitForCanvasStabilizationThenPositionButton();
-  }, 300); // gives iOS time to detect viewport change
-});
+window.addEventListener("orientationchange", waitForCanvasStabilizationThenPositionButton());
+
 
 resize();
 
