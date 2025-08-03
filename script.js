@@ -42,7 +42,7 @@ let audioCtx = null;
 let audioBuffers = [];
 let drawCount = 0;
 let lastFrameTime = null;
-let debugFlag = true;
+let debugFlag = false;
 
 // ==== SAFE ONE-OFF FRAME ====
 function drawFrameOnce() {
@@ -75,7 +75,7 @@ function resize() {
   if(debugFlag){console.log("Canvas size", canvas.width, canvas.height);}
   if(debugFlag){console.log("centerX:", centerX, "centerY:", centerY);}
   if(debugFlag){console.log("minRadius:", minRadius, "maxRadius:", maxRadius, "radiusStep:", radiusStep);}
-
+  waitForCanvasStabilizationThenPositionButton();
 }
 
 
@@ -548,6 +548,7 @@ function bindVolumeSliders() {
 
 
 function positionStartToggleToCanvasCenter() {
+  if(debugFlag){console.log("in positionStartToggleToCanvasCenter")}
   const btn = document.getElementById("startToggle");
   const canvas = document.getElementById("canvas");
   if (!btn || !canvas) return;

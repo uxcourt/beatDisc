@@ -80,6 +80,7 @@ html, body {
       position:absolute;
       right:1em;
       top: 1em;
+      z-index: 2; /* to keep it on top of the canvas */
     }
     #speedSlider{
       position:absolute;
