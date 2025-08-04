@@ -89,9 +89,7 @@ function positionStartToggleToCanvasCenter() {
   if (btn.parentElement !== parent) parent.appendChild(btn);
 
   // iOS/iPadOS: center by canvas rect in *page* pixels (most stable there)
-  const isiOS =
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isiOS = isIOS();  // from platform.js)
 
   if (isiOS) {
     const rect = canvas.getBoundingClientRect();
