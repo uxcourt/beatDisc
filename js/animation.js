@@ -3,24 +3,30 @@
 import { state } from "./state.js";
 import { playIndexIfDue } from "./playback.js";
 import { waitForCanvasStabilizationThenPositionButton as positionStartBtn } from "./uiStartToggle.js";
+import { getViewportSize } from "./platform.js";
 
 export function resize() {
   const dpr = window.devicePixelRatio || 1;
+  const { w, h } = getViewportSize();   // <- compute once
+
   const c = state.canvas, ctx = state.ctx;
-  c.width = window.innerWidth * dpr;
-  c.height = window.innerHeight * dpr;
-  c.style.width = window.innerWidth + "px";
-  c.style.height = window.innerHeight + "px";
-  ctx.setTransform(1,0,0,1,0,0);
+  // Use w/h for both the backing store and the CSS size
+  c.width  = Math.floor(w * dpr);
+  c.height = Math.floor(h * dpr);
+  c.style.width  = w + "px";
+  c.style.height = h + "px";
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
 
-  state.width = c.width / dpr;
-  state.height = c.height / dpr;
-  state.centerX = state.width / 2;
-  state.centerY = state.height / 2;
+  // Mirror w/h into state (don’t re-derive from c.width/height)
+  state.width  = w;
+  state.height = h;
+  state.centerX = w / 2;
+  state.centerY = h / 2;
 
   const padding = 20;
-  const maxUsable = Math.min(state.width, state.height) - 2 * padding;
+  const maxUsable = Math.min(w, h) - 2 * padding;
   state.minRadius = maxUsable * 0.1;
   state.maxRadius = maxUsable * 0.5;
   state.radiusStep = (state.maxRadius - state.minRadius) / state.circleCount;
@@ -28,6 +34,7 @@ export function resize() {
   drawFrameOnce();
   positionStartBtn();
 }
+
 
 export function drawFrameOnce() {
   const saved = state.animationFrameId;

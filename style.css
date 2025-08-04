@@ -3,6 +3,8 @@ html, body {
       overflow: hidden;
       background: #111;
       font-family: sans-serif;
+      overscroll-behavior: none;   /* avoid rubber-banding */
+      height:100%;
     }
     #controls {
       position: absolute;

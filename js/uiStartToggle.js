@@ -1,9 +1,6 @@
 // uiStartToggle.js
 import { state } from "./state.js";
-
-// add near the top
-const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+import { isIOS } from "./platform.js";
 
 let vvCleanup = null;
 
