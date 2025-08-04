@@ -201,9 +201,7 @@ export function bindEvents() {
       const onVV = () => {
         if (vvTimer) clearTimeout(vvTimer);
         vvTimer = setTimeout(() => {
-          // ensure page isn’t offset, then size to the *visible* viewport
-          window.scrollTo(0, 0);
-          resize();
+           resize();
           positionStartToggle();
         }, 120); // small quiet time after toolbar animations
       };
