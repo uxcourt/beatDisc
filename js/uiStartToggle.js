@@ -80,29 +80,40 @@ function ensurePositioningContext() {
   return parent;
 }
 
-/** Center the button using left/top 50% and translate(-50%, -50%) */
 function positionStartToggleToCanvasCenter() {
   const btn = state.startToggle;
   const canvas = state.canvas;
   if (!btn || !canvas) return;
 
   const parent = ensurePositioningContext();
+  if (btn.parentElement !== parent) parent.appendChild(btn);
 
-  // Ensure the button is in the same positioned container as the canvas
-  if (btn.parentElement !== parent) {
-    parent.appendChild(btn);
+  // iOS/iPadOS: center by canvas rect in *page* pixels (most stable there)
+  const isiOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  if (isiOS) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const bw = btn.offsetWidth || 0;
+    const bh = btn.offsetHeight || 0;
+
+    btn.style.position = "absolute";
+    btn.style.transform = "none";           // avoid double-shifting
+    btn.style.left = `${Math.round(cx - bw / 2)}px`;
+    btn.style.top  = `${Math.round(cy - bh / 2)}px`;
+  } else {
+    // Everyone else: transform centering inside the full-viewport container
+    btn.style.position = "absolute";
+    btn.style.left = "50%";
+    btn.style.top = "50%";
+    btn.style.transform = "translate(-50%, -50%)";
   }
 
-  // Transform-based centering (center of button aligns with parent center)
-  btn.style.position = "absolute";
-  btn.style.left = "50%";
-  btn.style.top = "50%";
-  btn.style.transform = "translate(-50%, -50%)";
   btn.style.zIndex = "10";
   btn.style.pointerEvents = "auto";
-
-  // Make sure it’s not display:none so size is measurable
-  if (getComputedStyle(btn).display === "none") {
-    btn.style.display = "block";
-  }
+  if (getComputedStyle(btn).display === "none") btn.style.display = "block";
 }
+

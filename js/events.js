@@ -6,6 +6,7 @@ import { initAudio } from "./playback.js";
 import { handleCanvasClick } from "./ticks.js";
 import { encodePatternToURL, tryLoadFromHash, applyPattern } from "./share.js";
 import { positionStartToggle } from "./uiStartToggle.js";
+import { isIOS } from "./platform.js";
 
 export function bindEvents() {
   // Segment input
@@ -192,5 +193,22 @@ export function bindEvents() {
       };
       reader.readAsText(file);
     });
+  }
+  // iOS/iPadOS: reflow when the visual viewport changes (toolbar settle, etc.)
+  {
+    if (isIOS && window.visualViewport) {
+      let vvTimer = null;
+      const onVV = () => {
+        if (vvTimer) clearTimeout(vvTimer);
+        vvTimer = setTimeout(() => {
+          // ensure page isn’t offset, then size to the *visible* viewport
+          window.scrollTo(0, 0);
+          resize();
+          positionStartToggle();
+        }, 120); // small quiet time after toolbar animations
+      };
+      visualViewport.addEventListener("resize", onVV);
+      visualViewport.addEventListener("scroll", onVV);
+    }
   }
 }
