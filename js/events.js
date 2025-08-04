@@ -194,19 +194,28 @@ export function bindEvents() {
       reader.readAsText(file);
     });
   }
-  // iOS/iPadOS: reflow when the visual viewport changes (toolbar settle, etc.)
-  {
-    if (isIOS && window.visualViewport) {
-      let vvTimer = null;
-      const onVV = () => {
-        if (vvTimer) clearTimeout(vvTimer);
-        vvTimer = setTimeout(() => {
-           resize();
+  // iOS/iPadOS: react to visual viewport changes
+{
+  if (isIOS() && window.visualViewport) {
+    let vvTimer = null;
+    const onVV = () => {
+      if (vvTimer) clearTimeout(vvTimer);
+      vvTimer = setTimeout(() => {
+        const vv = window.visualViewport;
+        // If the user is zooming/panning (scale > 1), DO NOT resize canvas;
+        // just re-center the button so it follows the discs visually.
+        if (vv && vv.scale > 1) {
           positionStartToggle();
-        }, 120); // small quiet time after toolbar animations
-      };
-      visualViewport.addEventListener("resize", onVV);
-      visualViewport.addEventListener("scroll", onVV);
-    }
+        } else {
+          // scale back at 1: size canvas to visible area (post-rotation/toolbars)
+          resize();
+          positionStartToggle();
+        }
+      }, 120);
+    };
+    visualViewport.addEventListener("resize", onVV);
+    visualViewport.addEventListener("scroll", onVV);
   }
+}
+
 }
