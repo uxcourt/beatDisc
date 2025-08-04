@@ -30,7 +30,7 @@
   
   <div id="controls">
     <div>
-      <button id="legend-toggle" class="material-symbols-outlined" onclick="toggleLegend()">settings</button>
+      <button id="legend-toggle" class="material-symbols-outlined">settings</button>
       <div id="legendPanel">
         <div class="legend-item"><div class="legend-color" style="background:#ff4444"></div>clave:  <input type="range" class="volume-slider" data-ring="0" min="0" max="1" step="0.01" value="1"></div>
         <div class="legend-item"><div class="legend-color" style="background:#ff9900"></div>campana:  <input type="range" class="volume-slider" data-ring="1" min="0" max="1" step="0.01" value="1"></div>
@@ -50,7 +50,7 @@
         </div>
         <div class="settingsPanelControl">
           <label for="exportBtn">Export Pattern </label>
-          <button onclick="exportPattern()" id="exportBtn">Name your export</button>
+          <button id="exportBtn">Name your export</button>
         </div>
         <div class="settingsPanelControl">  
           <label for="importBtn">Import Pattern </label>
@@ -77,6 +77,7 @@
   <input type="range" id="speedSlider" min="0.01" max="10" value="2.5" step="0.01" title="Speed">
   <script src="sounds.js"></script>
   <!-- add version to override caching -->
-  <script src="script.js?v=1.27"></script>
+  <!--<script src="script.js?v=1.27"></script>-->
+  <script type="module" src="/js/main.js?v=1.0"></script>
 </body>
 </html>
