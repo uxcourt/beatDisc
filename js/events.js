@@ -113,7 +113,14 @@ export function bindEvents() {
 
   // Resize/orientation & start button position
   window.addEventListener("resize", () => { resize(); positionStartToggle(); });
-  window.addEventListener("orientationchange", () => setTimeout(() => { resize(); positionStartToggle(); }, 300));
+  window.addEventListener("orientationchange", () =>
+  setTimeout(() => {
+    // Safari iPad: ensure no residual scroll after toolbars settle
+    window.scrollTo(0, 0);
+    resize();
+    positionStartToggle();
+  }, 600)
+);
 
   // Initial positioning
   positionStartToggle();

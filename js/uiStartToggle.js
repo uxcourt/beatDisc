@@ -69,8 +69,10 @@ export function positionStartToggle() {
 
 /** Ensure parent is positioned so 50%/50% anchors to the canvas container */
 function ensurePositioningContext() {
-  const canvas = state.canvas;
-  const parent = canvas?.parentElement || document.body;
+  // Prefer the explicit container that fills the viewport
+  const parent = document.getElementById("buttonWrapper")
+     || state.canvas?.parentElement
+     || document.body;
   const cs = window.getComputedStyle(parent);
   if (cs.position === "static") {
     parent.style.position = "relative"; // create a containing block

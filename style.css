@@ -152,8 +152,6 @@ html, body {
 
     #canvas {
       display: block;
-      width: 100vw;
-      height: 100vh;
       position: fixed;
       top:0;
       left:0;
@@ -162,13 +160,10 @@ html, body {
 
     #buttonWrapper {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: auto;
-      height: auto;
+      inset:0;
       z-index: 1;
       pointer-events: none;
-      /* display: none;  */
+      
     }
 
 
