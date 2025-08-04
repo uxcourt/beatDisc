@@ -7,7 +7,7 @@ html, body {
       height:100%;
     }
     #controls {
-      position: absolute;
+      position: fixed;
       top: 10px;
       left: 10px;
       z-index: 10;
@@ -79,7 +79,7 @@ html, body {
       color: #fff;
     }
     #shareBtn{
-      position:absolute;
+      position:fixed;
       right:1em;
       top: 1em;
       z-index: 2; /* to keep it on top of the canvas */
