@@ -1,6 +1,38 @@
 // uiStartToggle.js
 import { state } from "./state.js";
 
+// add near the top
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+let vvCleanup = null;
+
+// call this once (e.g., from positionStartToggle() after first load)
+function enableIOSViewportRecenter() {
+  if (!isIOS() || !window.visualViewport || vvCleanup) return;
+
+  let t = null;
+  const onVV = () => {
+    // wait for visual viewport to settle a bit, then re-center
+    if (t) clearTimeout(t);
+    t = setTimeout(() => {
+      // do a double-rAF to ensure layout has caught up
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        positionStartToggleToCanvasCenter();
+      }));
+    }, 120);
+  };
+
+  window.visualViewport.addEventListener('resize', onVV);
+  window.visualViewport.addEventListener('scroll', onVV);
+
+  vvCleanup = () => {
+    window.visualViewport.removeEventListener('resize', onVV);
+    window.visualViewport.removeEventListener('scroll', onVV);
+  };
+}
+
+
 /** Public API used by events.js */
 export function waitForCanvasStabilizationThenPositionButton() {
   const target = state.canvas;
@@ -35,6 +67,7 @@ export function waitForCanvasStabilizationThenPositionButton() {
 /** Alias expected by events.js */
 export function positionStartToggle() {
   waitForCanvasStabilizationThenPositionButton();
+  enableIOSViewportRecenter(); // ensure hooks are active on iOS
 }
 
 /** Ensure parent is positioned so 50%/50% anchors to the canvas container */
