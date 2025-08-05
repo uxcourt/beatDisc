@@ -9,7 +9,9 @@ import { positionStartToggle } from "./uiStartToggle.js";
 import { isIOS } from "./platform.js";
 
 export function bindEvents() {
-  // ---- Sticky zoom state (iOS only) ----
+  // ---------------------------
+  // Sticky zoom state (iOS only)
+  // ---------------------------
   const ZOOM_IN = 1.02;    // enter "zoomed" when scale > 1.02
   const ZOOM_OUT = 1.005;  // leave "zoomed" when scale <= 1.005
   let isZoomed = false;
@@ -28,7 +30,7 @@ export function bindEvents() {
         unzoomSettleTimer = setTimeout(() => {
           isZoomed = false;
           unzoomSettleTimer = null;
-          // we are truly back at 1x: refit once
+          // truly back at 1x: refit once
           resize();
           positionStartToggle();
         }, 180);
@@ -51,7 +53,7 @@ export function bindEvents() {
     state.quantizeToggle.textContent = state.isQuantized ? "Strict" : "Loose";
   });
 
-  // Ease toggle
+  // Ease toggle (hidden UI is fine; still respected)
   state.easeToggle.addEventListener("click", () => {
     if (state.isRotating) stopImmediate();
     state.easingToZero = !state.easingToZero;
@@ -66,22 +68,18 @@ export function bindEvents() {
   // Start/Stop (button + space)
   {
     let lock = false;
-    const dbg = (...a) => console.debug("[events]", ...a);
+    // const dbg = (...a) => console.debug("[events]", ...a);
 
     async function onToggle(source) {
       if (lock) return;
       lock = true;
       try {
-        dbg("source=", source, "isRotating=", state.isRotating, "easing=", state.easing, "easingToZero=", state.easingToZero);
-
         const starting = !state.isRotating && !state.easing;
         if (starting) {
           await initAudio();             // audio only when starting
-          dbg("-> start()");
           setRunning(true);
         } else {
           const allowEasing = !!state.easingToZero; // honor the setting for all inputs
-          dbg(allowEasing ? "-> easeToZeroStart()" : "-> stopImmediate()");
           setRunning(false, { allowEasing });
         }
       } finally {
@@ -117,7 +115,7 @@ export function bindEvents() {
   state.shareBtn.addEventListener("click", () => {
     const url = encodePatternToURL();
     if (navigator.share) {
-      navigator.share({ title: "Check out this Beat Disc", text: "Check out this Beat Disc.", url });
+      navigator.share({ title: "Check out this Beat Disc", text: "Beat Disc pattern", url });
     } else {
       alert(`Share link:\n${url}`);
     }
@@ -134,12 +132,15 @@ export function bindEvents() {
   tryLoadFromHash();
   window.addEventListener("hashchange", tryLoadFromHash);
 
-  // ---- Window resize: don't refit while zoomed on iOS ----
+  // -----------------------------------
+  // Window resize: don't refit while zoomed on iOS
+  // -----------------------------------
   window.addEventListener("resize", () => {
     if (isIOS() && window.visualViewport) {
       updateZoomStateFromVV();
-      if (isZoomed) { 
-        positionStartToggle(); // keep button glued, but don't refit canvas
+      if (isZoomed) {
+        // keep button glued, but don't refit canvas during zoom
+        positionStartToggle();
         return;
       }
     }
@@ -147,19 +148,56 @@ export function bindEvents() {
     positionStartToggle();
   });
 
-  // ---- Orientation change: respect zoom; refit only at 1x ----
+  // -----------------------------------
+  // Orientation change: respect zoom; refit only at 1x (with quick settle)
+  // -----------------------------------
   window.addEventListener("orientationchange", () =>
     setTimeout(() => {
       if (isIOS() && window.visualViewport) {
         updateZoomStateFromVV();
-        // Re-center button/overlay immediately to new vv
+        // Re-center immediately to the new vv box
         positionStartToggle();
-        if (isZoomed) {
-          // stay in zoomed layout; do NOT refit canvas now
+
+        const vv = window.visualViewport;
+        const scale = vv ? vv.scale : 1;
+
+        // If we're effectively at 1×, refit now
+        if (scale <= 1.01) {
+          window.scrollTo(0, 0);
+          resize();
+          positionStartToggle();
           return;
         }
+
+        // Otherwise, wait briefly for scale to return to ~1 and refit once
+        let armed = true;
+        const tryRefit = () => {
+          if (!armed) return;
+          const s = visualViewport.scale;
+          if (s <= 1.01) {
+            armed = false;
+            window.scrollTo(0, 0);
+            resize();
+            positionStartToggle();
+            visualViewport.removeEventListener("resize", tryRefit);
+            visualViewport.removeEventListener("scroll", tryRefit);
+          }
+        };
+        visualViewport.addEventListener("resize", tryRefit);
+        visualViewport.addEventListener("scroll", tryRefit);
+        // Safety disarm after 1.2s so we don't keep listeners around
+        setTimeout(() => {
+          if (armed) {
+            armed = false;
+            visualViewport.removeEventListener("resize", tryRefit);
+            visualViewport.removeEventListener("scroll", tryRefit);
+          }
+        }, 1200);
+
+        return; // don't run the 1x refit below twice
       }
-      // at 1x: refit once
+
+      // Non-iOS fallback: simple refit
       window.scrollTo(0, 0);
       resize();
       positionStartToggle();
@@ -169,7 +207,9 @@ export function bindEvents() {
   // Initial positioning
   positionStartToggle();
 
+  // -------------------------
   // Export pattern (no clipboard)
+  // -------------------------
   {
     const exportBtn = document.getElementById("exportBtn");
     exportBtn?.addEventListener("click", () => {
@@ -204,7 +244,9 @@ export function bindEvents() {
     });
   }
 
+  // -------------------------
   // Import pattern (.json file)
+  // -------------------------
   {
     const input = state.importBtn;
     input?.addEventListener("change", () => {
@@ -233,17 +275,26 @@ export function bindEvents() {
     });
   }
 
-  // ---- iOS: visual viewport changes (zoom/pan/toolbar settle) ----
+  // ------------------------------------------------------
+  // iOS: visual viewport changes (zoom/pan/toolbar settle)
+  // ------------------------------------------------------
   if (isIOS() && window.visualViewport) {
     let vvTimer = null;
     const onVV = () => {
       if (vvTimer) clearTimeout(vvTimer);
       vvTimer = setTimeout(() => {
         updateZoomStateFromVV();
+
         // Always keep the button glued to the discs
         positionStartToggle();
-        // DO NOT call resize() here while zoomed; updateZoomStateFromVV will
-        // call resize() once we've been back at ~1x for a short settle period.
+
+        // At 1× (not zoomed) refit to any vv height changes (toolbar settle).
+        // Avoid resizing while the "unzoom settle" timer is pending.
+        if (!isZoomed && !unzoomSettleTimer) {
+          resize();
+          positionStartToggle();
+        }
+        // While zoomed: do NOT call resize(); optical zoom should prevail.
       }, 120);
     };
     visualViewport.addEventListener("resize", onVV);
