@@ -194,25 +194,54 @@ export function bindEvents() {
       reader.readAsText(file);
     });
   }
-  // iOS/iPadOS: react to visual viewport changes
+  // iOS/iPadOS: react to visual viewport changes (zoom/pan/toolbar settle)
 {
   if (isIOS() && window.visualViewport) {
     let vvTimer = null;
+
+    // Track zoom state with hysteresis so brief misreports (~1.0) don't resize the canvas
+    const ZOOM_IN   = 1.02;   // consider zoomed when scale > 1.02
+    const ZOOM_OUT  = 1.005;  // only consider unzoomed when scale <= 1.005
+    let isZoomed = false;     // our sticky zoom state
+    let unzoomSettleTimer = null;
+
     const onVV = () => {
       if (vvTimer) clearTimeout(vvTimer);
       vvTimer = setTimeout(() => {
         const vv = window.visualViewport;
-        // If the user is zooming/panning (scale > 1), DO NOT resize canvas;
-        // just re-center the button so it follows the discs visually.
-        if (vv && vv.scale > 1) {
-          positionStartToggle();
-        } else {
-          // scale back at 1: size canvas to visible area (post-rotation/toolbars)
-          resize();
-          positionStartToggle();
+        const scale = vv ? vv.scale : 1;
+
+        // Update sticky zoom state with hysteresis
+        if (!isZoomed && scale > ZOOM_IN) {
+          isZoomed = true;
+          if (unzoomSettleTimer) { clearTimeout(unzoomSettleTimer); unzoomSettleTimer = null; }
+        } else if (isZoomed && scale <= ZOOM_OUT) {
+          // Don't flip immediately—require a brief quiet period at ~1.0
+          if (!unzoomSettleTimer) {
+            unzoomSettleTimer = setTimeout(() => {
+              isZoomed = false;
+              unzoomSettleTimer = null;
+              // Now that we're truly back at 1x, (re)size the canvas to the visible area
+              resize();
+              positionStartToggle();
+            }, 180); // settle time
+          }
         }
-      }, 120);
+
+        // Always keep the button aligned to the discs
+        // (This also covers panning/zooming when isZoomed === true)
+        positionStartToggle();
+
+        // While zoomed: do NOT resize the canvas—let optical zoom do the work.
+        // When not zoomed (and not flipping state right now), we still want to
+        // correct for toolbar settle (vv height changes) without fighting users.
+        if (!isZoomed && !unzoomSettleTimer) {
+          // Debounced correction for toolbar show/hide at 1x
+          // (No canvas resize here; 'resize()' above will run after settle or via orientationchange)
+        }
+      }, 120); // debounce vv storm
     };
+
     visualViewport.addEventListener("resize", onVV);
     visualViewport.addEventListener("scroll", onVV);
   }
