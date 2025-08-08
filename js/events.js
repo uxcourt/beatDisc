@@ -6,8 +6,39 @@ import { initAudio } from "./playback.js";
 import { handleCanvasClick } from "./ticks.js";
 import { encodePatternToURL, tryLoadFromHash, applyPattern } from "./share.js";
 import { positionStartToggle } from "./uiStartToggle.js";
+import { isIOS } from "./platform.js";
 
 export function bindEvents() {
+  // ---------------------------
+  // Sticky zoom state (iOS only)
+  // ---------------------------
+  const ZOOM_IN = 1.02;    // enter "zoomed" when scale > 1.02
+  const ZOOM_OUT = 1.005;  // leave "zoomed" when scale <= 1.005
+  let isZoomed = false;
+  let unzoomSettleTimer = null;
+
+  function updateZoomStateFromVV() {
+    const vv = window.visualViewport;
+    const scale = vv ? vv.scale : 1;
+
+    if (!isZoomed && scale > ZOOM_IN) {
+      isZoomed = true;
+      if (unzoomSettleTimer) { clearTimeout(unzoomSettleTimer); unzoomSettleTimer = null; }
+    } else if (isZoomed && scale <= ZOOM_OUT) {
+      if (!unzoomSettleTimer) {
+        // require a brief quiet period at ~1.0 before unzooming
+        unzoomSettleTimer = setTimeout(() => {
+          isZoomed = false;
+          unzoomSettleTimer = null;
+          // truly back at 1x: refit once
+          resize();
+          positionStartToggle();
+        }, 180);
+      }
+    }
+    return { vv, scale };
+  }
+
   // Segment input
   state.segmentInput.addEventListener("input", () => {
     const val = parseInt(state.segmentInput.value, 10);
@@ -22,12 +53,9 @@ export function bindEvents() {
     state.quantizeToggle.textContent = state.isQuantized ? "Strict" : "Loose";
   });
 
-  // Ease toggle
+  // Ease toggle (hidden UI is fine; still respected)
   state.easeToggle.addEventListener("click", () => {
-    if (state.isRotating) {
-      // stop first, consistent with your current logic
-      stopImmediate();
-    }
+    if (state.isRotating) stopImmediate();
     state.easingToZero = !state.easingToZero;
     state.easeToggle.textContent = state.easingToZero ? "On" : "Off";
   });
@@ -37,26 +65,22 @@ export function bindEvents() {
     state.currentSpeed = parseFloat(state.speedSlider.value);
   });
 
-  // Start/Stop (button + space) — unified toggle + scoped debug
+  // Start/Stop (button + space)
   {
     let lock = false;
-    const dbg = (...a) => console.debug("[events]", ...a);
+    // const dbg = (...a) => console.debug("[events]", ...a);
 
     async function onToggle(source) {
       if (lock) return;
       lock = true;
       try {
-        dbg("source=", source, "isRotating=", state.isRotating, "easing=", state.easing, "easingToZero=", state.easingToZero);
-
         const starting = !state.isRotating && !state.easing;
         if (starting) {
           await initAudio();             // audio only when starting
-          dbg("-> start()");
           setRunning(true);
         } else {
-            const allowEasing = !!state.easingToZero; // honor the setting for all inputs
-            dbg(allowEasing ? "-> easeToZeroStart()" : "-> stopImmediate()");
-            setRunning(false, { allowEasing });
+          const allowEasing = !!state.easingToZero; // honor the setting for all inputs
+          setRunning(false, { allowEasing });
         }
       } finally {
         lock = false;
@@ -72,7 +96,7 @@ export function bindEvents() {
     });
   }
 
-  // Legend toggle via addEventListener (no globals)
+  // Legend toggle
   {
     const legendBtn   = document.getElementById("legend-toggle");
     const legendPanel = document.getElementById("legendPanel");
@@ -81,7 +105,6 @@ export function bindEvents() {
       const open = legendPanel.style.display !== "block";
       legendPanel.style.display = open ? "block" : "none";
       legendBtn.setAttribute("aria-expanded", String(open));
-      // legendBtn.textContent = open ? "close" : "settings";
     });
   }
 
@@ -92,38 +115,105 @@ export function bindEvents() {
   state.shareBtn.addEventListener("click", () => {
     const url = encodePatternToURL();
     if (navigator.share) {
-      navigator.share({ title: "Check out this rhythm!", text: "I made this Beat Disc on beatdis.co.", url });
+      navigator.share({ title: "Check out this Beat Disc", text: "Beat Disc pattern", url });
     } else {
-      // No clipboard: just show the URL so the user can copy it manually
       alert(`Share link:\n${url}`);
     }
   });
 
-  // Volume sliders binding (run after DOMContentLoaded)
+  // Volume sliders binding
   document.querySelectorAll(".volume-slider").forEach(slider => {
     const ringIndex = parseInt(slider.dataset.ring, 10);
     slider.value = state.ringVolumes[ringIndex];
     slider.oninput = () => { state.ringVolumes[ringIndex] = parseFloat(slider.value); };
   });
 
-  // Load from URL hash *now* (bindEvents runs after DOMContentLoaded)
+  // Load from URL hash *now*; also listen for future changes
   tryLoadFromHash();
-  // Also respond to future hash changes (e.g., pasted links, in-app updates)
   window.addEventListener("hashchange", tryLoadFromHash);
 
-  // Resize/orientation & start button position
-  window.addEventListener("resize", () => { resize(); positionStartToggle(); });
-  window.addEventListener("orientationchange", () => setTimeout(() => { resize(); positionStartToggle(); }, 300));
+  // -----------------------------------
+  // Window resize: don't refit while zoomed on iOS
+  // -----------------------------------
+  window.addEventListener("resize", () => {
+    if (isIOS() && window.visualViewport) {
+      updateZoomStateFromVV();
+      if (isZoomed) {
+        // keep button glued, but don't refit canvas during zoom
+        positionStartToggle();
+        return;
+      }
+    }
+    resize();
+    positionStartToggle();
+  });
+
+  // -----------------------------------
+  // Orientation change: respect zoom; refit only at 1x (with quick settle)
+  // -----------------------------------
+  window.addEventListener("orientationchange", () =>
+    setTimeout(() => {
+      if (isIOS() && window.visualViewport) {
+        updateZoomStateFromVV();
+        // Re-center immediately to the new vv box
+        positionStartToggle();
+
+        const vv = window.visualViewport;
+        const scale = vv ? vv.scale : 1;
+
+        // If we're effectively at 1×, refit now
+        if (scale <= 1.01) {
+          window.scrollTo(0, 0);
+          resize();
+          positionStartToggle();
+          return;
+        }
+
+        // Otherwise, wait briefly for scale to return to ~1 and refit once
+        let armed = true;
+        const tryRefit = () => {
+          if (!armed) return;
+          const s = visualViewport.scale;
+          if (s <= 1.01) {
+            armed = false;
+            window.scrollTo(0, 0);
+            resize();
+            positionStartToggle();
+            visualViewport.removeEventListener("resize", tryRefit);
+            visualViewport.removeEventListener("scroll", tryRefit);
+          }
+        };
+        visualViewport.addEventListener("resize", tryRefit);
+        visualViewport.addEventListener("scroll", tryRefit);
+        // Safety disarm after 1.2s so we don't keep listeners around
+        setTimeout(() => {
+          if (armed) {
+            armed = false;
+            visualViewport.removeEventListener("resize", tryRefit);
+            visualViewport.removeEventListener("scroll", tryRefit);
+          }
+        }, 1200);
+
+        return; // don't run the 1x refit below twice
+      }
+
+      // Non-iOS fallback: simple refit
+      window.scrollTo(0, 0);
+      resize();
+      positionStartToggle();
+    }, 600)
+  );
 
   // Initial positioning
   positionStartToggle();
 
-  // Export pattern via addEventListener (no globals, no clipboard)
+  // -------------------------
+  // Export pattern (no clipboard)
+  // -------------------------
   {
     const exportBtn = document.getElementById("exportBtn");
     exportBtn?.addEventListener("click", () => {
       try {
-        // Build a JSON object (ticks, volumes, speed, segmentCount) for file export
         const data = {
           ticks: state.ticks.map(t => ({
             circleIndex: t.circleIndex,
@@ -136,7 +226,7 @@ export function bindEvents() {
         };
 
         const rawName = prompt("Name your export", "my-pattern");
-        if (rawName === null) return; // user cancelled
+        if (rawName === null) return;
         const name = (rawName || "pattern").replace(/[^a-z0-9_\-\.]+/gi, "_").slice(0, 64);
 
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -147,10 +237,6 @@ export function bindEvents() {
         a.click();
         URL.revokeObjectURL(a.href);
         a.remove();
-
-        // If you still want to surface the share URL to users without copying:
-        // const url = encodePatternToURL();
-        // alert(`Share link:\n${url}`);
       } catch (err) {
         console.error("[exportPattern]", err);
         alert("Export failed: " + err.message);
@@ -158,9 +244,11 @@ export function bindEvents() {
     });
   }
 
-  // Import pattern (.json file) — reuse applyPattern()
+  // -------------------------
+  // Import pattern (.json file)
+  // -------------------------
   {
-    const input = state.importBtn; // <input type="file" id="importBtn" accept=".json">
+    const input = state.importBtn;
     input?.addEventListener("change", () => {
       const file = input.files && input.files[0];
       if (!file) return;
@@ -175,7 +263,7 @@ export function bindEvents() {
           console.error("[importPattern] Invalid JSON:", err);
           alert("Import failed: invalid JSON file.");
         } finally {
-          input.value = ""; // allow re-selecting the same file later
+          input.value = "";
         }
       };
       reader.onerror = () => {
@@ -185,5 +273,31 @@ export function bindEvents() {
       };
       reader.readAsText(file);
     });
+  }
+
+  // ------------------------------------------------------
+  // iOS: visual viewport changes (zoom/pan/toolbar settle)
+  // ------------------------------------------------------
+  if (isIOS() && window.visualViewport) {
+    let vvTimer = null;
+    const onVV = () => {
+      if (vvTimer) clearTimeout(vvTimer);
+      vvTimer = setTimeout(() => {
+        updateZoomStateFromVV();
+
+        // Always keep the button glued to the discs
+        positionStartToggle();
+
+        // At 1× (not zoomed) refit to any vv height changes (toolbar settle).
+        // Avoid resizing while the "unzoom settle" timer is pending.
+        if (!isZoomed && !unzoomSettleTimer) {
+          resize();
+          positionStartToggle();
+        }
+        // While zoomed: do NOT call resize(); optical zoom should prevail.
+      }, 120);
+    };
+    visualViewport.addEventListener("resize", onVV);
+    visualViewport.addEventListener("scroll", onVV);
   }
 }
