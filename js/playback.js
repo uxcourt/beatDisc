@@ -12,14 +12,37 @@ function dataUrlToArrayBuffer(dataUrl) {
   return bytes.buffer;
 }
 
+// --- minimal iOS hardening state (module-scope) ---
+let unlockArmed = false;
+
+function armGestureUnlock() {
+  if (unlockArmed) return;
+  if (!('addEventListener' in document)) return;
+  unlockArmed = true;
+
+  const tryResume = async () => {
+    if (!state.audioCtx) return;
+    try { await state.audioCtx.resume(); } catch {}
+    if (state.audioCtx.state === "running") {
+      teardown();
+    }
+  };
+
+  const teardown = () => {
+    ["pointerdown","touchend","click","keydown"].forEach(t =>
+      document.removeEventListener(t, tryResume, true)
+    );
+    unlockArmed = false;
+  };
+
+  ["pointerdown","touchend","click","keydown"].forEach(t =>
+    document.addEventListener(t, tryResume, true)
+  );
+}
 
 export async function initAudio() {
   if (!state.audioCtx) {
     state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // Resume only if needed (must be in a user gesture)
-    if (state.audioCtx.state === "suspended") {
-      await state.audioCtx.resume();
-    }
     // Decode and cache AudioBuffers for the configured `state.sounds` keys
     state.audioBuffers = await Promise.all(
       state.sounds.map(async (key) => {
@@ -31,13 +54,37 @@ export async function initAudio() {
         const arrayBuffer = dataUrlToArrayBuffer(url);
         return await state.audioCtx.decodeAudioData(arrayBuffer);
       })
-    ); 
+    );
   }
+
+  // Always attempt to resume (handles iPhone cases where context later suspends)
+  if (state.audioCtx.state === "suspended") {
+    try { await state.audioCtx.resume(); } catch {}
+  }
+
+  // If we still aren’t running (iOS first-gesture rules), arm a one-time unlock
+  if (state.audioCtx.state !== "running") armGestureUnlock();
+}
+
+// Minimal helper other modules can call before scheduling audio
+export async function ensureAudioReady() {
+  if (!state.audioCtx) {
+    await initAudio();
+  } else if (state.audioCtx.state === "suspended") {
+    try { await state.audioCtx.resume(); } catch {}
+    if (state.audioCtx.state !== "running") armGestureUnlock();
+  }
+  return !!state.audioCtx && state.audioCtx.state === "running";
 }
 
 export function playSound(index, volume=1) {
   if (!state.audioCtx || !state.audioBuffers || !state.audioBuffers[index]) return;
-  if (state.audioCtx.state === "suspended") state.audioCtx.resume();
+
+  // Last-ditch, non-blocking resume attempt (safe no-op if already running)
+  if (state.audioCtx.state === "suspended") {
+    state.audioCtx.resume().catch(() => {});
+  }
+
   const source = state.audioCtx.createBufferSource();
   const gainNode = state.audioCtx.createGain();
   gainNode.gain.value = volume;
@@ -58,7 +105,7 @@ export function playIndexIfDue() {
     const edge = (triggerAngle - triggerRange + 2*Math.PI) % (2*Math.PI);
     const dp = (curr - prev + 2*Math.PI) % (2*Math.PI);
     const dt = (edge - prev + 2*Math.PI) % (2*Math.PI);
-    const crossed = dt >= 0 && dt < dp;;
+    const crossed = dt >= 0 && dt < dp;
 
     if (crossed) {
       const last = state.activeTickCooldowns.get(tick) || 0;

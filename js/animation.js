@@ -62,6 +62,7 @@ export function setRunning(desired, { allowEasing = false } = {}) {
 
   if (desired) {
     // START
+    ensureAudioReady().catch(() => {});
     start();
   } else {
     // STOP (optionally via easing)
