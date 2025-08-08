@@ -1,7 +1,7 @@
 // /js/animation.js
 
 import { state } from "./state.js";
-import { playIndexIfDue } from "./playback.js";
+import { playIndexIfDue, ensureAudioReady } from "./playback.js";
 import { waitForCanvasStabilizationThenPositionButton as positionStartBtn } from "./uiStartToggle.js";
 import { getViewportSize } from "./platform.js";
 
