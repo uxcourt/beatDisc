@@ -197,6 +197,14 @@ export function draw() {
 
   // Trigger playback checks near top
   if (state.isRotating) {
+      // Self-heal iOS audio if it got suspended mid-session (non-blocking)
+    if (state.audioCtx && state.audioCtx.state === "suspended") {
+      // (optional) rate-limit: only try every 500ms
+      // if (!window.__lastResume || performance.now() - window.__lastResume > 500) {
+      //   window.__lastResume = performance.now();
+        state.audioCtx.resume().catch(() => {});
+      // }
+    }
     playIndexIfDue();
   }
 

@@ -117,3 +117,15 @@ export function playIndexIfDue() {
     }
   }
 }
+
+// --- Recover audio when returning from background / app switch ---
+document.addEventListener("visibilitychange", () => {
+  if (
+    document.visibilityState === "visible" &&
+    state.audioCtx &&
+    state.audioCtx.state === "suspended"
+  ) {
+    state.audioCtx.resume().catch(() => {});
+  }
+});
+
