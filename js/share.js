@@ -74,3 +74,45 @@ export function tryLoadFromHash() {
     // Optional: no-op; applyPattern already resized/redrew
   }
 }
+
+// === Short-link helpers ===
+
+// Build the same base64 payload you currently put in the hash.
+// (Adjust fields if your pattern format differs.)
+export function buildPatternPayloadB64() {
+  const data = {
+    ticks: state.ticks.map(t => ({
+      circleIndex: t.circleIndex,
+      angle: t.angle,
+      sound: t.sound
+    })),
+    volumes: [...state.ringVolumes],
+    speed: state.currentSpeed,
+    segmentCount: state.segmentCount
+  };
+  return btoa(JSON.stringify(data));
+}
+
+// Try to load a pattern using an incoming short-id param (?s=<id>).
+// On success, it applies the pattern and (optionally) mirrors to #<b64> for portability.
+export async function tryLoadFromShortIdIfPresent() {
+  const params = new URLSearchParams(location.search);
+  const id = params.get('s');
+  if (!id) return false;
+
+  try {
+    const res = await fetch(`/api/expand?id=${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error(`expand failed: ${res.status}`);
+    const { payloadB64 } = await res.json();
+    const parsed = JSON.parse(atob(payloadB64)); // your payload is plain JSON in b64
+    if (parsed && applyPattern(parsed)) {
+      // mirror into the hash so if user copies URL after load, it still encodes the full state
+      history.replaceState(null, '', `${location.pathname}#${payloadB64}`);
+      return true;
+    }
+  } catch (e) {
+    console.error('[short expand]', e);
+  }
+  return false;
+}
+
