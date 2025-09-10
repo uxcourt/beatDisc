@@ -100,41 +100,6 @@ async function waitForAppReady() {
 }
 
 let _shortIdHandled = false;
-/** Expand ?s=<id> → mirror to #<b64> → run the hash loader (after init) */
-export async function tryLoadFromShortIdIfPresent() {
-  if (_shortIdHandled) return false;
-
-  const params = new URLSearchParams(location.search);
-  const id = params.get('s');
-  if (!id) return false;
-
-  try {
-    const res = await fetch(`/api/expand?id=${encodeURIComponent(id)}`);
-    if (!res.ok) throw new Error(`expand failed: ${res.status}`);
-    const { payloadB64 } = await res.json();
-
-    // Ensure the app is actually initialized (canvas, inputs, etc.)
-    await waitForAppReady();
-
-    // Replace the URL with the hash payload (no extra history entry)
-    history.replaceState(null, '', `${location.pathname}#${payloadB64}`);
-    _shortIdHandled = true;
-
-    // Fire your known-good path: both event + direct call, after two frames
-    requestAnimationFrame(() => {
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
-      requestAnimationFrame(() => tryLoadFromHash());
-    });
-
-    return true;
-  } catch (e) {
-    console.error('[short expand]', e);
-  }
-  return false;
-}
-
-
-let _shortIdHandled = false;
 /** Load from ?s=<id>: expand → mirror to #<b64> → invoke known-good hash loader AFTER init. */
 export async function tryLoadFromShortIdIfPresent() {
   if (_shortIdHandled) return false;
