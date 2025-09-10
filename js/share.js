@@ -112,8 +112,17 @@ let _shortIdHandled = false;
 export async function tryLoadFromShortIdIfPresent() {
   if (_shortIdHandled) return false;
 
-  const params = new URLSearchParams(location.search);
-  const id = params.get('s');
+  const id = (() => {
+    // Prefer query param (?s=...) if present
+    const qs = new URLSearchParams(location.search);
+    const fromQuery = qs.get('s');
+    if (fromQuery) return fromQuery;
+
+    // Fallback: extract from pathname /s/<id>
+    const m = location.pathname.match(/^\/s\/([^/?#]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  })();
+
   if (!id) return false;
 
   try {
