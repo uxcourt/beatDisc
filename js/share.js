@@ -2,13 +2,11 @@
 import { state } from "./state.js";
 import { resize } from "./animation.js";
 
-/** Validate and coerce a parsed pattern object into app state, then redraw. */
+/** Apply a parsed pattern into state, then redraw. */
 export function applyPattern(parsed) {
   if (!parsed || typeof parsed !== "object") return false;
-
-  // ticks
+// ticks
   if (Array.isArray(parsed.ticks)) {
-    // normalize: only keep known fields
     state.ticks = parsed.ticks.map(t => ({
       circleIndex: Number(t.circleIndex) || 0,
       angle: Number(t.angle) || 0,
@@ -16,13 +14,12 @@ export function applyPattern(parsed) {
     }));
   }
 
-  // ring volumes
+// volumes
   if (Array.isArray(parsed.volumes)) {
-    // shallow copy to keep same shape
     state.ringVolumes = parsed.volumes.slice();
   }
 
-  // speed
+// speed
   if (typeof parsed.speed === "number") {
     state.currentSpeed = parsed.speed;
     if (state.speedSlider) state.speedSlider.value = String(parsed.speed);
@@ -31,18 +28,16 @@ export function applyPattern(parsed) {
     if (state.speedSlider) state.speedSlider.value = parsed.speed;
   }
 
-  // segments
+// segments
   if (typeof parsed.segmentCount === "number") {
     state.segmentCount = parsed.segmentCount | 0;
     if (state.segmentInput) state.segmentInput.value = String(state.segmentCount);
   }
 
-  // redraw & recalc geometry
   resize();
   return true;
 }
 
-/** Safely decode base64 JSON from a string (hash payload). */
 export function decodeBase64JSON(b64) {
   try {
     const json = atob(b64.replace(/^#/, ""));
@@ -52,7 +47,6 @@ export function decodeBase64JSON(b64) {
   }
 }
 
-/** Existing: build URL from current state (unchanged) */
 export function encodePatternToURL() {
   const data = {
     ticks: state.ticks.map(t => ({ circleIndex: t.circleIndex, angle: t.angle, sound: t.sound })),
@@ -64,27 +58,18 @@ export function encodePatternToURL() {
   return `${location.origin}${location.pathname}#${b64}`;
 }
 
-/** Updated: load from current location.hash using applyPattern() */
 export function tryLoadFromHash() {
   const raw = location.hash || "";
   if (!raw || raw.length < 2) return;
-
   const parsed = decodeBase64JSON(raw);
-  if (parsed && applyPattern(parsed)) {
-    // Optional: no-op; applyPattern already resized/redrew
-  }
+  if (parsed) applyPattern(parsed);
 }
 
-// === Short-link helpers ===
+// ===== Short-link helpers =====
 
-// Build the same base64 payload you currently put in the hash.
 export function buildPatternPayloadB64() {
   const data = {
-    ticks: state.ticks.map(t => ({
-      circleIndex: t.circleIndex,
-      angle: t.angle,
-      sound: t.sound
-    })),
+    ticks: state.ticks.map(t => ({ circleIndex: t.circleIndex, angle: t.angle, sound: t.sound })),
     volumes: [...state.ringVolumes],
     speed: state.currentSpeed,
     segmentCount: state.segmentCount
@@ -92,9 +77,17 @@ export function buildPatternPayloadB64() {
   return btoa(JSON.stringify(data));
 }
 
-// Try to load a pattern using an incoming short-id param (?s=<id>).
-// NEW: After expanding, mirror into #<b64> and reuse the known-good hash loader.
+/** Wait until DOM is loaded and a frame passed (lets your init attach listeners & create canvas). */
+async function waitForAppReady() {
+  if (document.readyState === "loading") {
+    await new Promise(r => document.addEventListener("DOMContentLoaded", r, { once: true }));
+  }
+  // Give your init code a tick to finish (listeners, canvas sizing, etc.)
+  await new Promise(r => requestAnimationFrame(() => r()));
+}
+
 let _shortIdHandled = false;
+/** Load from ?s=<id>: expand → mirror to #<b64> → invoke known-good hash loader AFTER init. */
 export async function tryLoadFromShortIdIfPresent() {
   if (_shortIdHandled) return false;
 
@@ -107,14 +100,24 @@ export async function tryLoadFromShortIdIfPresent() {
     if (!res.ok) throw new Error(`expand failed: ${res.status}`);
     const { payloadB64 } = await res.json();
 
-    // 1) Mirror into the hash so we use the SAME rendering code path as the long-hash flow.
+    // 0) Ensure the app is initialized before we apply anything.
+    await waitForAppReady();
+
+    // 1) Mirror into hash so we use the EXACT same code path as manual #<b64>.
     history.replaceState(null, '', `${location.pathname}#${payloadB64}`);
     _shortIdHandled = true;
 
-    // 2) Invoke the hash loader on the next frame (ensures init has completed).
-    requestAnimationFrame(() => {
-      tryLoadFromHash();
-    });
+    // 2) If your app uses a 'hashchange' listener for loading, trigger it.
+    //    Otherwise, call tryLoadFromHash() directly on the next frame.
+    const fireHashLoader = () => {
+      // If you have a hashchange listener wired, dispatch it; it will call your loader.
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      // Also call directly as a safety net in case the listener attaches later.
+      requestAnimationFrame(() => tryLoadFromHash());
+    };
+
+    // Defer slightly to ensure any listeners attached at end of init are active.
+    setTimeout(fireHashLoader, 0);
 
     return true;
   } catch (e) {
