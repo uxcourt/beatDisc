@@ -9,11 +9,6 @@ import { positionStartToggle } from "./uiStartToggle.js";
 import { isIOS } from "./platform.js";
 import { tryLoadFromShortIdIfPresent, buildPatternPayloadB64 } from './share.js';
 
-// 1) On app init: try short-id first, then hash
-tryLoadFromShortIdIfPresent().then((loaded) => {
-  if (!loaded) tryLoadFromHash();
-});
-window.addEventListener("hashchange", tryLoadFromHash);
 
 export function bindEvents() {
   // ---------------------------
@@ -180,9 +175,6 @@ state.shareBtn.addEventListener("click", async () => {
     slider.oninput = () => { state.ringVolumes[ringIndex] = parseFloat(slider.value); };
   });
 
-  // Load from URL hash *now*; also listen for future changes
-  tryLoadFromHash();
-  window.addEventListener("hashchange", tryLoadFromHash);
 
   // -----------------------------------
   // Window resize: don't refit while zoomed on iOS
@@ -354,10 +346,12 @@ state.shareBtn.addEventListener("click", async () => {
   }
 }
 
+// After the page is fully ready: prefer short links (?s=<id>), else fall back to #<b64>
+window.addEventListener('load', () => {
+   tryLoadFromShortIdIfPresent().then((loaded) => {
+     if (!loaded) tryLoadFromHash();
+   });
+   // Now that everything is wired, listen for future hash changes
+   window.addEventListener("hashchange", tryLoadFromHash);
+ });
 
-// On load: prefer short links (?s=<id>) and fallback to #<b64>
-tryLoadFromShortIdIfPresent().then((loaded) => {
-  if (!loaded) tryLoadFromHash();
-});
-
-window.addEventListener("hashchange", tryLoadFromHash);
