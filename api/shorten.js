@@ -1,8 +1,8 @@
 // /api/shorten.js
 // Serverless function for Vercel (Node 18+). No client secrets leaked.
 
-const SUPABASE_URL = process.env.SUPABASE_URL;                 // e.g. https://bezehwehcwxizlscrlud.supabase.co
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; // keep server-only
+const SUPABASE_URL = process.env.SUPABASE_URL;                 
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; 
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {

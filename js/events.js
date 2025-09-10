@@ -7,6 +7,8 @@ import { handleCanvasClick } from "./ticks.js";
 import { encodePatternToURL, tryLoadFromHash, applyPattern } from "./share.js";
 import { positionStartToggle } from "./uiStartToggle.js";
 import { isIOS } from "./platform.js";
+import { tryLoadFromShortIdIfPresent, buildPatternPayloadB64 } from './share.js';
+
 
 export function bindEvents() {
   // ---------------------------
@@ -112,14 +114,59 @@ export function bindEvents() {
   state.canvas.addEventListener("click", handleCanvasClick);
 
   // Share button (no clipboard write)
-  state.shareBtn.addEventListener("click", () => {
-    const url = encodePatternToURL();
-    if (navigator.share) {
-      navigator.share({ title: "Check out this Beat Disc", text: "Beat Disc pattern", url });
+  //state.shareBtn.addEventListener("click", () => {
+  //  const url = encodePatternToURL();
+  //  if (navigator.share) {
+  //    navigator.share({ title: "Check out this Beat Disc", text: "Beat Disc pattern", url });
+  //  } else {
+  //    alert(`Share link:\n${url}`);
+  //  }
+  //});
+
+  // Share button -> create DB row -> get short URL -> share that URL
+state.shareBtn.addEventListener("click", async () => {
+  const payloadB64 = buildPatternPayloadB64();
+
+  let shortUrl = null;
+  try {
+    const res = await fetch('/api/shorten', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ payloadB64 })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      shortUrl = data.shortUrl; // e.g. https://beatdis.co/s/Ab3X9fQp
     } else {
-      alert(`Share link:\n${url}`);
+      const err = await res.text();
+      console.error('[shorten] server error', res.status, err);
     }
-  });
+  } catch (e) {
+    console.error('[shorten] network error', e);
+  }
+
+  if (!shortUrl) {
+    alert("Sorry. Beat Disc could not create a link right now.");
+    return;
+  }
+
+  // Share the SHORT URL via OS share sheet if available, else copy to clipboard, else show it.
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: "Beat Disc pattern", url: shortUrl });
+      return;
+    } catch (e) {
+      // fall through to clipboard path
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(shortUrl);
+    alert("Short link copied to clipboard:\n" + shortUrl);
+  } catch {
+    alert("Short link:\n" + shortUrl);
+  }
+});
+
 
   // Volume sliders binding
   document.querySelectorAll(".volume-slider").forEach(slider => {
@@ -128,9 +175,6 @@ export function bindEvents() {
     slider.oninput = () => { state.ringVolumes[ringIndex] = parseFloat(slider.value); };
   });
 
-  // Load from URL hash *now*; also listen for future changes
-  tryLoadFromHash();
-  window.addEventListener("hashchange", tryLoadFromHash);
 
   // -----------------------------------
   // Window resize: don't refit while zoomed on iOS
@@ -301,3 +345,12 @@ export function bindEvents() {
     visualViewport.addEventListener("scroll", onVV);
   }
 }
+
+// After the page is fully ready: prefer short links (?s=<id>), else fall back to #<b64>
+window.addEventListener('load', () => {
+   tryLoadFromShortIdIfPresent().then((loaded) => {
+     if (!loaded) tryLoadFromHash();
+   });
+   // Now that everything is wired, listen for future hash changes
+   window.addEventListener("hashchange", tryLoadFromHash);
+ });
