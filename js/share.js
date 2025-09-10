@@ -125,7 +125,7 @@ export async function tryLoadFromShortIdIfPresent() {
     await waitForAppReady();
 
     // Mirror into the hash so if user copies URL after load, it still encodes the full state
-    history.replaceState(null, '', `${location.pathname}#${payloadB64}`);
+    history.replaceState(null, '', `/#${payloadB64}`);
     _shortIdHandled = true;
 
     // Apply immediately so ticks render even if listeners attach later
