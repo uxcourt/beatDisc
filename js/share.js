@@ -78,7 +78,6 @@ export function tryLoadFromHash() {
 // === Short-link helpers ===
 
 // Build the same base64 payload you currently put in the hash.
-// (Adjust fields if your pattern format differs.)
 export function buildPatternPayloadB64() {
   const data = {
     ticks: state.ticks.map(t => ({
@@ -94,8 +93,11 @@ export function buildPatternPayloadB64() {
 }
 
 // Try to load a pattern using an incoming short-id param (?s=<id>).
-// On success, it applies the pattern and (optionally) mirrors to #<b64> for portability.
+// NEW: After expanding, mirror into #<b64> and reuse the known-good hash loader.
+let _shortIdHandled = false;
 export async function tryLoadFromShortIdIfPresent() {
+  if (_shortIdHandled) return false;
+
   const params = new URLSearchParams(location.search);
   const id = params.get('s');
   if (!id) return false;
@@ -104,15 +106,19 @@ export async function tryLoadFromShortIdIfPresent() {
     const res = await fetch(`/api/expand?id=${encodeURIComponent(id)}`);
     if (!res.ok) throw new Error(`expand failed: ${res.status}`);
     const { payloadB64 } = await res.json();
-    const parsed = JSON.parse(atob(payloadB64)); // your payload is plain JSON in b64
-    if (parsed && applyPattern(parsed)) {
-      // mirror into the hash so if user copies URL after load, it still encodes the full state
-      history.replaceState(null, '', `${location.pathname}#${payloadB64}`);
-      return true;
-    }
+
+    // 1) Mirror into the hash so we use the SAME rendering code path as the long-hash flow.
+    history.replaceState(null, '', `${location.pathname}#${payloadB64}`);
+    _shortIdHandled = true;
+
+    // 2) Invoke the hash loader on the next frame (ensures init has completed).
+    requestAnimationFrame(() => {
+      tryLoadFromHash();
+    });
+
+    return true;
   } catch (e) {
     console.error('[short expand]', e);
   }
   return false;
 }
-
