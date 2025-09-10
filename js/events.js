@@ -354,4 +354,3 @@ window.addEventListener('load', () => {
    // Now that everything is wired, listen for future hash changes
    window.addEventListener("hashchange", tryLoadFromHash);
  });
-
