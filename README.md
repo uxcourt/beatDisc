@@ -24,5 +24,5 @@ Let me know if you find any; it seems stable and performant on all platforms I'v
 # running version
 <a href="https://beatdis.co">https://beatdis.co</a>
 
-# patent
-It seems somebody thought of this long ago and patented it. I had no idea when I wrote this code. https://patents.google.com/patent/US7589269B2/en
+// # patent
+// It seems somebody thought of this long ago and patented it. I had no idea when I wrote this code. https://patents.google.com/patent/US7589269B2/en
