@@ -20,7 +20,6 @@ If you wish to generate your own sounds, convert them to base64 and load them in
 
 # current bugs
 Let me know if you find any; it seems stable and performant on all platforms I've been able to test with.
-* The generated URLS can be so long as tp get truncated by some communications modes. Next step will be a URL shortener.
 
 # running version
 <a href="https://beatdis.co">https://beatdis.co</a>
