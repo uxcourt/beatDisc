@@ -104,9 +104,12 @@ export function bindEvents() {
     const legendPanel = document.getElementById("legendPanel");
 
     legendBtn.addEventListener("click", () => {
-      const open = legendPanel.style.display !== "block";
-      legendPanel.style.display = open ? "block" : "none";
+      const open = legendPanel.style.display !== "inline-flex";
+      legendPanel.style.display = open ? "inline-flex" : "none";
+      legendPanel.style.flexDirection = "column";
+      legendPanel.style.alignItems = "stretch";
       legendBtn.setAttribute("aria-expanded", String(open));
+      //legendBtn.innerHTML ? "settings" : "close"; how to get the icon to change when the panel is open?
     });
   }
 
