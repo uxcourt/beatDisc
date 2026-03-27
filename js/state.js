@@ -47,6 +47,13 @@ export const state = {
 
   // helpers
   lastFrameTime: null,
+  
+  // --- auth & subscription (populated by auth.js initAuth()) ---
+  isPremium:          false,   // true when subscription status is active/trialing/past_due
+  subscriptionStatus: null,    // raw Stripe status string, or null
+  cancelAtPeriodEnd:  false,   // true if user has canceled but period hasn't ended yet
+  userEmail:          null,    // email of the signed-in user, or null
+
 };
 
 export function init() {

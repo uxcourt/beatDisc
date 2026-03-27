@@ -8,7 +8,18 @@ import { encodePatternToURL, tryLoadFromHash, applyPattern } from "./share.js";
 import { positionStartToggle } from "./uiStartToggle.js";
 import { isIOS } from "./platform.js";
 import { tryLoadFromShortIdIfPresent, buildPatternPayloadB64 } from './share.js';
+import { showUpsellModal, showSignInModal, signOut, getAccessToken } from './auth.js';
 
+// ---------------------------------------------------------------------------
+// Premium gate helper
+// Call this before executing any premium feature.
+// Returns true if the action should proceed, false if it was blocked.
+// ---------------------------------------------------------------------------
+function requiresPremium(featureName) {
+  if (state.isPremium) return true;
+  showUpsellModal(featureName);
+  return false;
+}
 
 export function bindEvents() {
   // ---------------------------
@@ -41,8 +52,17 @@ export function bindEvents() {
     return { vv, scale };
   }
 
-  // Segment input
+   // ---------------------------------------------------------------------------
+  // Segment input — PREMIUM GATED
+  // Free users see the upsell modal; the value is not applied.
+  // ---------------------------------------------------------------------------
   state.segmentInput.addEventListener("input", () => {
+    if (!requiresPremium('segments')) {
+      // Revert the input to the current value so the control doesn't
+      // appear to have changed while the upsell modal is showing.
+      state.segmentInput.value = String(state.segmentCount);
+      return;
+    }
     const val = parseInt(state.segmentInput.value, 10);
     if (val > 0) state.segmentCount = val;
   });
@@ -113,37 +133,27 @@ export function bindEvents() {
   // Canvas clicks
   state.canvas.addEventListener("click", handleCanvasClick);
 
-  // Share button (no clipboard write)
-  //state.shareBtn.addEventListener("click", () => {
-  //  const url = encodePatternToURL();
-  //  if (navigator.share) {
-  //    navigator.share({ title: "Check out this Beat Disc", text: "Beat Disc pattern", url });
-  //  } else {
-  //    alert(`Share link:\n${url}`);
-  //  }
-  //});
-
   // Share button -> create DB row -> get short URL -> share that URL
-state.shareBtn.addEventListener("click", async () => {
-  const payloadB64 = buildPatternPayloadB64();
+  state.shareBtn.addEventListener("click", async () => {
+    const payloadB64 = buildPatternPayloadB64();
 
-  let shortUrl = null;
-  try {
-    const res = await fetch('/api/shorten', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ payloadB64 })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      shortUrl = data.shortUrl; // e.g. https://beatdis.co/s/Ab3X9fQp
-    } else {
-      const err = await res.text();
-      console.error('[shorten] server error', res.status, err);
+    let shortUrl = null;
+    try {
+      const res = await fetch('/api/shorten', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ payloadB64 })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        shortUrl = data.shortUrl; // e.g. https://beatdis.co/s/Ab3X9fQp
+      } else {
+        const err = await res.text();
+        console.error('[shorten] server error', res.status, err);
+      }
+    } catch (e) {
+      console.error('[shorten] network error', e);
     }
-  } catch (e) {
-    console.error('[shorten] network error', e);
-  }
 
   if (!shortUrl) {
     alert("Sorry. Beat Disc could not create a link right now.");
@@ -174,7 +184,22 @@ state.shareBtn.addEventListener("click", async () => {
     slider.value = state.ringVolumes[ringIndex];
     slider.oninput = () => { state.ringVolumes[ringIndex] = parseFloat(slider.value); };
   });
-
+    // ---------------------------------------------------------------------------
+  // Sign in / Sign out button
+  // ---------------------------------------------------------------------------
+  {
+    const signInBtn = document.getElementById('signIn');
+    if (signInBtn) {
+      signInBtn.addEventListener('click', async () => {
+        if (state.userEmail) {
+          // Already signed in — sign out.
+          await signOut();
+        } else {
+          showSignInModal();
+        }
+      });
+    }
+  }
 
   // -----------------------------------
   // Window resize: don't refit while zoomed on iOS
