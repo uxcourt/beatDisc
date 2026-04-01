@@ -1,4 +1,5 @@
 {
+  "outputDirectory": ".",
   "rewrites": [
     { "source": "/s/:id([^/.]+)", "destination": "/?s=:id" }
   ]
