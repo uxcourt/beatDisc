@@ -1,0 +1,17 @@
+{
+  "name": "beatdisc",
+  "version": "1.0.0",
+  "description": "A visualization of time offering the ability to mark its passage with eight sounds",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'Static site - no build needed'",
+    "lint": "echo 'No linter configured'"
+  },
+  "keywords": ["music", "rhythm", "visualization"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/analytics": "^1.1.1"
+  }
+}
