@@ -88,6 +88,72 @@ async function refreshSession(refreshToken, storageKey) {
 }
 
 // ---------------------------------------------------------------------------
+// Magic link redirect handler
+// When Supabase redirects back after a magic link click, the session tokens
+// arrive in the URL hash as #access_token=...&refresh_token=...&type=magiclink
+// We detect that, exchange the tokens with Supabase to get a full session
+// object, store it in localStorage (matching Supabase's own key format),
+// then clean the fragment from the URL so it doesn't persist or interfere
+// with the app's own hash-based pattern sharing.
+// ---------------------------------------------------------------------------
+async function handleAuthRedirect() {
+  const hash = window.location.hash;
+  if (!hash || !hash.includes('access_token=')) return;
+
+  const params = new URLSearchParams(hash.replace(/^#/, ''));
+  const accessToken  = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const type         = params.get('type');
+
+  // Only handle magiclink and recovery types — not pattern share hashes.
+  if (!accessToken || !refreshToken) return;
+  if (type !== 'magiclink' && type !== 'recovery' && type !== 'signup') return;
+
+  // Clean the auth fragment from the URL immediately so it doesn't persist.
+  // Use replaceState so the back button isn't affected.
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+
+  // Exchange the access token for a full session object including user data.
+  try {
+    const resp = await fetch(`${_supabaseUrl}/auth/v1/user`, {
+      headers: {
+        'apikey':        _supabaseAnon,
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    if (!resp.ok) {
+      console.error('[auth] Token exchange failed:', resp.status);
+      return;
+    }
+    const user = await resp.json();
+
+    // Build a session object that matches Supabase's localStorage format.
+    const expiresIn = parseInt(params.get('expires_in') || '3600', 10);
+    const session = {
+      access_token:  accessToken,
+      refresh_token: refreshToken,
+      expires_in:    expiresIn,
+      expires_at:    Math.floor(Date.now() / 1000) + expiresIn,
+      token_type:    'bearer',
+      user
+    };
+
+    // Store under the same key Supabase JS SDK uses: sb-<project-ref>-auth-token
+    // Extract project ref from the Supabase URL (https://<ref>.supabase.co)
+    const ref = (_supabaseUrl || '').match(/https?:\/\/([^.]+)/)?.[1] ?? 'project';
+    const storageKey = `sb-${ref}-auth-token`;
+    localStorage.setItem(storageKey, JSON.stringify(session));
+
+    // Cache the session so getSession() doesn't need to re-read localStorage.
+    _session = session;
+
+    console.log('[auth] Magic link session stored for:', user.email);
+  } catch (e) {
+    console.error('[auth] handleAuthRedirect error:', e.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Premium status check (calls our own serverless function)
 // ---------------------------------------------------------------------------
 async function fetchPremiumStatus(accessToken) {
@@ -112,6 +178,10 @@ async function fetchPremiumStatus(accessToken) {
  */
 export async function initAuth() {
   await getConfig();
+
+  // Must run before getSession() — consumes the URL hash tokens if present
+  // and writes them to localStorage so getSession() can find them.
+  await handleAuthRedirect();
 
   _session = await getSession();
 
