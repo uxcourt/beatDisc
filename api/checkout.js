@@ -9,15 +9,17 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const SUPABASE_URL      = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PRICE_ID          = process.env.STRIPE_PRICE_ID;
-const proto = req.headers['x-forwarded-proto'] || 'https';
-const host  = req.headers['host'] || 'beatdis.co';
-const BASE_URL = `${proto}://${host}`;
+
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
+  // Derive base URL from request so Stripe redirects back to the correct environment
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const host  = req.headers['host'] || 'beatdis.co';
+  const BASE_URL = `${proto}://${host}`;
 
   // The client sends the Supabase JWT so we can identify the user server-side.
   const authHeader = req.headers['authorization'] || '';
