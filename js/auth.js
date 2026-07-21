@@ -204,10 +204,16 @@ export async function initAuth() {
 /**
  * Send a magic-link email. Call this when the user submits their email
  * in the sign-in modal.
+ * @param {string} email - The user's email address.
+ * @param {string|null} redirectTo - Optional URL to redirect to after clicking
+ *   the magic link. Used to preserve intent across the auth flow (e.g. '?checkout=1').
  */
-export async function sendMagicLink(email) {
+export async function sendMagicLink(email, redirectTo = null) {
   await getConfig();
   if (!_supabaseUrl || !_supabaseAnon) throw new Error('Auth not configured');
+
+  const body = { email };
+  if (redirectTo) body.redirect_to = redirectTo;
 
   const resp = await fetch(`${_supabaseUrl}/auth/v1/magiclink`, {
     method:  'POST',
@@ -215,7 +221,7 @@ export async function sendMagicLink(email) {
       'apikey':       _supabaseAnon,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ email })
+    body: JSON.stringify(body)
   });
 
   if (!resp.ok) {
@@ -270,7 +276,9 @@ export function getAccessToken() {
 export async function startCheckout() {
   const token = getAccessToken();
   if (!token) {
-    showSignInModal();
+    // Pass 'checkout' intent so the sign-in modal sends a magic link that
+    // redirects back to /?checkout=1, automatically resuming the flow.
+    showSignInModal('checkout');
     return;
   }
 
@@ -320,6 +328,30 @@ export async function handlePostCheckoutRedirect() {
 }
 
 // ---------------------------------------------------------------------------
+// Handle the ?checkout=1 redirect back from a magic link with checkout intent.
+// Automatically starts the Stripe checkout flow so the user doesn't have to
+// re-trigger the premium feature a second time.
+// ---------------------------------------------------------------------------
+export async function handlePostAuthRedirect() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has('checkout')) return;
+
+  // Clean the query string from the URL without a reload.
+  history.replaceState(null, '', location.pathname + location.hash);
+
+  // Session must be resolved before we can start checkout.
+  // initAuth() has already run by this point in main.js.
+  if (!_session?.access_token) {
+    console.warn('[auth] handlePostAuthRedirect: no session after initAuth — skipping checkout');
+    return;
+  }
+
+  // Small delay to ensure the UI has fully settled after auth resolution.
+  await new Promise(r => setTimeout(r, 300));
+  await startCheckout();
+}
+
+// ---------------------------------------------------------------------------
 // UI helpers
 // ---------------------------------------------------------------------------
 
@@ -335,11 +367,15 @@ function updateSignInButton() {
   }
 }
 
-export function showSignInModal() {
+export function showSignInModal(intent = null) {
   let modal = document.getElementById('signInModal');
   if (!modal) {
-    modal = buildSignInModal();
+    modal = buildSignInModal(intent);
     document.body.appendChild(modal);
+  } else {
+    // Update intent on reuse so a returning unauthenticated user gets the
+    // correct redirectTo even if the modal was previously built without intent.
+    modal._intent = intent;
   }
   modal.style.display = 'flex';
 }
@@ -353,9 +389,10 @@ export function showUpsellModal() {
   modal.style.display = 'flex';
 }
 
-function buildSignInModal() {
+function buildSignInModal(intent = null) {
   const overlay = document.createElement('div');
   overlay.id = 'signInModal';
+  overlay._intent = intent; // store intent so it survives modal reuse
   overlay.style.cssText = `
     display:none; position:fixed; inset:0; z-index:1000;
     background:rgba(0,0,0,0.75);
@@ -407,7 +444,13 @@ function buildSignInModal() {
       submitBtn.textContent = 'Sending…';
       message.textContent  = '';
       try {
-        await sendMagicLink(email);
+        // If the modal was opened with checkout intent, embed ?checkout=1 in
+        // the magic link redirect so the flow resumes automatically after sign-in.
+        const currentIntent = overlay._intent;
+        const redirectTo = currentIntent === 'checkout'
+          ? `${window.location.origin}/?checkout=1`
+          : null;
+        await sendMagicLink(email, redirectTo);
         message.style.color  = '#0f0';
         message.textContent  = 'Check your email for the magic link!';
         submitBtn.textContent = 'Sent!';
