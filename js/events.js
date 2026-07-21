@@ -1,7 +1,7 @@
 // /js/events.js
 
 import { state } from "./state.js";
-import { start, stopImmediate, easeToZeroStart, resize, setRunning } from "./animation.js";
+import { start, stopImmediate, easeToZeroStart, resize, setRunning, drawFrameOnce } from "./animation.js";
 import { initAudio } from "./playback.js";
 import { handleCanvasClick } from "./ticks.js";
 import { encodePatternToURL, tryLoadFromHash, applyPattern } from "./share.js";
@@ -65,6 +65,7 @@ export function bindEvents() {
     }
     const val = parseInt(state.segmentInput.value, 10);
     if (val > 0) state.segmentCount = val;
+    drawFrameOnce(); //redraw immediately to show segment count is working
   });
 
   // Quantize
