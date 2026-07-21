@@ -9,7 +9,9 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const SUPABASE_URL      = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PRICE_ID          = process.env.STRIPE_PRICE_ID;
-const BASE_URL          = 'https://beatdis.co';
+const proto = req.headers['x-forwarded-proto'] || 'https';
+const host  = req.headers['host'] || 'beatdis.co';
+const BASE_URL = `${proto}://${host}`;
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
