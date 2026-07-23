@@ -1,4 +1,4 @@
-// / api/webhook.js
+// /api/webhook.js
 // Receives Stripe events and syncs subscription state to Supabase.
 // Stripe calls this endpoint directly — there is no user session here.
 // Requires: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
