@@ -2,7 +2,7 @@
 // Creates a Stripe Checkout Session for the monthly subscription.
 // Called by the client when a user clicks "Subscribe".
 // Requires: STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_PUBLISHABLE_KEY,
-//           SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+//          SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 

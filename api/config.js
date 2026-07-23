@@ -1,4 +1,4 @@
-// /api/config.js
+//  /api/config.js
 // Exposes public configuration values to the client.
 // Only values that are safe to expose to the browser go here.
 // The service role key and webhook secret NEVER appear here.

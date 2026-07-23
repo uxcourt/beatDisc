@@ -1,4 +1,4 @@
-// /api/debug-config.js
+//  /api/debug-config.js
 module.exports = async (req, res) => {
   res.status(200).json({
     supabaseUrlPresent: !!process.env.SUPABASE_URL,

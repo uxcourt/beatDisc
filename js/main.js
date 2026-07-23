@@ -1,4 +1,4 @@
-// /js/main.js
+//  /js/main.js
 import { init } from "./state.js";
 import { resize } from "./animation.js";
 import { bindEvents } from "./events.js";

@@ -1,4 +1,4 @@
-// /js/auth.js
+//  /js/auth.js
 // Handles Supabase Auth sign-in/sign-out and premium status.
 // Sets state.isPremium and state.userEmail after resolving session.
 // Imported by main.js — call initAuth() once on page load.

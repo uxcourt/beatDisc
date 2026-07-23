@@ -1,4 +1,4 @@
-// /api/shorten.js
+//  /api/shorten.js
 // Serverless function for Vercel (Node 18+). No client secrets leaked.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;                 

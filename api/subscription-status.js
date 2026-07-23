@@ -1,4 +1,4 @@
-// /api/subscription-status.js
+//  /api/subscription-status.js
 // Returns the current user's subscription status.
 // Called by the client on page load and after sign-in.
 // Requires: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
