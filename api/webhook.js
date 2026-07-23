@@ -70,13 +70,21 @@ async function getCustomerByStripeId(stripeCustomerId) {
 
 function getRawBody(req) {
   return new Promise((resolve, reject) => {
+    if (req.body) {
+      // Vercel already parsed the body — reconstruct raw bytes
+      const raw = typeof req.body === 'string'
+        ? Buffer.from(req.body)
+        : Buffer.from(JSON.stringify(req.body));
+      resolve(raw);
+      return;
+    }
+    // Raw stream fallback
     const chunks = [];
     req.on('data', chunk => chunks.push(chunk));
-    req.on('end',  ()    => resolve(Buffer.concat(chunks)));
+    req.on('end',  () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
-
 // Main handler ----------------------------------------------------------------
 
 module.exports = async (req, res) => {
@@ -234,10 +242,4 @@ module.exports = async (req, res) => {
   res.status(200).json({ received: true });
 };
 
-module.exports.config = {
-  runtime: 'nodejs20.x',
-  // CRITICAL: Disable Vercel's default body parser.
-  // Stripe signature verification requires the raw request body bytes.
-  // If Vercel parses the body first, the signature check will always fail.
-  api: { bodyParser: false }
-};
+module.exports.config = {runtime: 'nodejs20.x' };
