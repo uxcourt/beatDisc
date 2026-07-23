@@ -3,11 +3,15 @@
 // Only values that are safe to expose to the browser go here.
 // The service role key and webhook secret NEVER appear here.
 
-module.exports = (req, res) => {
+// /api/debug-config.js
+module.exports = async (req, res) => {
   res.status(200).json({
-    supabaseUrl:  process.env.SUPABASE_URL,
-    supabaseAnon: process.env.SUPABASE_ANON_KEY,
+    supabaseUrlPresent:      !!process.env.SUPABASE_URL,
+    serviceRolePresent:      !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    webhookSecretPresent:    !!process.env.STRIPE_WEBHOOK_SECRET,
+    webhookSecretPrefix:     (process.env.STRIPE_WEBHOOK_SECRET || '').slice(0, 12),
+    runtime: 'node',
+    host: req.headers.host
   });
 };
-
 module.exports.config = { runtime: 'nodejs20.x' };
